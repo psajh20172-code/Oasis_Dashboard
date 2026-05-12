@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>우와시스 운영 대시보드</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f1e; --card: #111827; --card2: #1a2235; --border: #1e2d45;
+    --accent-a: #00c2ff; --accent-b: #00e5a0; --accent-c: #ff6b6b;
+    --text: #e2e8f0; --muted: #64748b; --gold: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; min-height:100vh; padding-bottom:80px; }
+
+  #loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; }
+  .loading-icon { font-size:48px; animation:spin 1.5s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { color:var(--muted); font-size:14px; }
+
+  .header { background:linear-gradient(135deg,#0d1b2e,#112240); border-bottom:1px solid var(--border); padding:14px 16px 10px; position:sticky; top:0; z-index:1000; }
+  .header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .logo { display:flex; align-items:center; gap:8px; }
+  .logo-icon { width:32px; height:32px; background:linear-gradient(135deg,var(--accent-a),var(--accent-b)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .logo-text { font-size:16px; font-weight:700; }
+  .logo-sub { font-size:10px; color:var(--muted); }
+  .refresh-btn { background:var(--card2); border:1px solid var(--border); color:var(--muted); padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-family:inherit; }
+
+  .date-nav { display:flex; align-items:center; gap:8px; }
+  .date-nav select { flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:8px; font-size:13px; font-family:inherit; appearance:none; }
+  .btn-nav { width:34px; height:34px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 16px; }
+  .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 10px; text-align:center; }
+  .kpi-label { font-size:10px; color:var(--muted); margin-bottom:4px; }
+  .kpi-value { font-size:22px; font-weight:800; line-height:1; }
+  .kpi-unit { font-size:10px; color:var(--muted); margin-top:2px; }
+  .kpi-card.blue .kpi-value { color:var(--accent-a); }
+  .kpi-card.green .kpi-value { color:var(--accent-b); }
+  .kpi-card.red .kpi-value { color:var(--accent-c); }
+
+  .tab-bar { display:flex; gap:6px; padding:0 16px 12px; }
+  .tab-btn { flex:1; padding:8px 4px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--muted); font-size:12px; cursor:pointer; font-family:inherit; }
+  .tab-btn.active { background:var(--accent-a); border-color:var(--accent-a); color:#000; font-weight:700; }
+
+  .section { display:none; padding:0 16px; }
+  .section.active { display:block; }
+
+  #map { width:100%; height:340px; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
+  .map-legend { display:flex; gap:12px; padding:8px 0; flex-wrap:wrap; }
+  .legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+
+  .move-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px; }
+  .move-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .ship-num { font-size:18px; font-weight:800; color:var(--accent-a); }
+  .team-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+  .team-A { background:rgba(0,194,255,0.15); color:var(--accent-a); border:1px solid rgba(0,194,255,0.3); }
+  .team-B { background:rgba(0,229,160,0.15); color:var(--accent-b); border:1px solid rgba(0,229,160,0.3); }
+  .team-C { background:rgba(255,107,107,0.15); color:var(--accent-c); border:1px solid rgba(255,107,107,0.3); }
+  .move-route { display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:6px; }
+  .loc-from { color:var(--muted); }
+  .arrow { color:var(--gold); font-size:16px; }
+  .loc-to { color:var(--text); font-weight:600; }
+  .move-reason { font-size:11px; color:var(--muted); }
+
+  .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+  .table-wrap thead { background:var(--card2); }
+  .table-wrap th { padding:10px 12px; text-align:left; font-size:11px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); }
+  .table-wrap td { padding:10px 12px; border-bottom:1px solid rgba(30,45,69,0.5); }
+  .table-wrap tr:last-child td { border-bottom:none; }
+  .num { font-weight:700; }
+  .ice { color:var(--accent-b); font-weight:700; }
+
+  .contact-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:8px; }
+  .contact-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .team-title { font-size:15px; font-weight:700; }
+  .contact-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--border); }
+  .contact-role { font-size:11px; color:var(--muted); }
+  .contact-name { font-size:14px; font-weight:600; margin-top:2px; }
+  .call-btn { display:flex; align-items:center; gap:5px; background:rgba(0,194,255,0.1); border:1px solid rgba(0,194,255,0.3); color:var(--accent-a); padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; }
+
+  .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
+  .empty-icon { font-size:32px; margin-bottom:8px; }
+  .last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loading-icon">🧊</div>
+  <div class="loading-text">데이터 불러오는 중...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">🧊</div>
+        <div>
+          <div class="logo-text">우와시스</div>
+          <div class="logo-sub">야드 물품 공급 운영</div>
+        </div>
+      </div>
+      <button class="refresh-btn" onclick="loadAllData()">↺ 새로고침</button>
+    </div>
+    <div class="date-nav">
+      <button class="btn-nav" id="prev-btn">◀</button>
+      <select id="date-select"></select>
+      <button class="btn-nav" id="next-btn">▶</button>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card blue"><div class="kpi-label">총 작업인원</div><div class="kpi-value" id="kpi-workers">-</div><div class="kpi-unit">명</div></div>
+    <div class="kpi-card green"><div class="kpi-label">필요 얼음물</div><div class="kpi-value" id="kpi-ice">-</div><div class="kpi-unit">개</div></div>
+    <div class="kpi-card red"><div class="kpi-label">이동 호선</div><div class="kpi-value" id="kpi-ships">-</div><div class="kpi-unit">건</div></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('map')">🗺️ 지도</button>
+    <button class="tab-btn" onclick="switchTab('move')">🚢 이동</button>
+    <button class="tab-btn" onclick="switchTab('ice')">🧊 수량</button>
+    <button class="tab-btn" onclick="switchTab('team')">👥 담당자</button>
+  </div>
+
+  <div class="section active" id="sec-map">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00c2ff"></div>A팀</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00e5a0"></div>B팀</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>C팀</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>이동예정</div>
+    </div>
+  </div>
+
+  <div class="section" id="sec-move"><div id="move-list"></div></div>
+
+  <div class="section" id="sec-ice">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>호선</th><th>팀</th><th>작업인원</th><th>얼음물</th></tr></thead>
+        <tbody id="ice-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section" id="sec-team"><div id="team-list"></div></div>
+  <div class="last-updated" id="last-updated"></div>
+</div>
+
+<script>
+const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQBff75LSjUiUEc-JK1yQ-gqMYdNsTDDsbwoKGKtcZgmq0gdDle-UkqF5RuBccGmZPsWQZDe0Ut9wet/pub?single=true&output=csv';
+const URLS = {
+  workforce: SHEET_BASE + '&gid=0',
+  movement:  SHEET_BASE + '&gid=1794460912',
+  contacts:  SHEET_BASE + '&gid=1401593939',
+  locations: SHEET_BASE + '&gid=663859698',
+};
+const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
+
+let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
+let selectedDate='', allDates=[];
+let map, markersLayer, routeLayer;
+
+// CSV 파싱
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.trim().split('\n');
+  const headers = splitCSVLine(lines[0]);
+  for (let i=1; i<lines.length; i++) {
+    const vals = splitCSVLine(lines[i]);
+    if (!vals.some(v=>v)) continue;
+    const obj = {};
+    headers.forEach((h,idx) => { obj[h] = (vals[idx]||'').trim(); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function splitCSVLine(line) {
+  const result=[], re=/("(?:[^"]|"")*"|[^,]*)(,|$)/g;
+  let m;
+  while ((m=re.exec(line)) !== null) {
+    let val = m[1];
+    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1,-1).replace(/""/g,'"');
+    result.push(val.trim());
+    if (m[2]==='') break;
+  }
+  return result;
+}
+
+async function fetchCSV(url) {
+  const res = await fetch(url + '&cachebust=' + Date.now());
+  const text = await res.text();
+  return parseCSV(text);
+}
+
+async function loadAllData() {
+  document.getElementById('loading-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  try {
+    [WORKFORCE, MOVEMENT, CONTACTS, LOCATIONS] = await Promise.all([
+      fetchCSV(URLS.workforce), fetchCSV(URLS.movement),
+      fetchCSV(URLS.contacts), fetchCSV(URLS.locations),
+    ]);
+    const dates = [...new Set([
+      ...WORKFORCE.map(r=>r['날짜']),
+      ...MOVEMENT.map(r=>r['날짜'])
+    ].filter(Boolean))].sort();
+    allDates = dates;
+    if (!selectedDate || !allDates.includes(selectedDate)) {
+      const today = new Date().toISOString().slice(0,10);
+      selectedDate = allDates.find(d=>d>=today) || allDates[allDates.length-1] || '';
+    }
+    initDateSelect();
+    render();
+    document.getElementById('last-updated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    if (!map) initMap();
+    setTimeout(()=>map&&map.invalidateSize(),200);
+  } catch(e) {
+    document.getElementById('loading-screen').innerHTML=`
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:40px">⚠️</div>
+        <div style="margin-top:12px;font-size:14px;color:#ff6b6b">데이터 로드 실패</div>
+        <div style="margin-top:6px;font-size:12px;color:#64748b">구글 시트 게시 설정을 확인해주세요</div>
+        <button onclick="loadAllData()" style="margin-top:16px;padding:8px 20px;background:#00c2ff;border:none;border-radius:8px;font-size:13px;cursor:pointer">다시 시도</button>
+      </div>`;
+  }
+}
+
+function initDateSelect() {
+  const sel = document.getElementById('date-select');
+  sel.innerHTML='';
+  const days=['일','월','화','수','목','금','토'];
+  allDates.forEach(d=>{
+    const opt=document.createElement('option');
+    opt.value=d;
+    const dt=new Date(d+'T00:00:00');
+    opt.textContent=`${d.slice(5).replace('-','/')} (${days[dt.getDay()]})`;
+    if(d===selectedDate) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=e=>{ selectedDate=e.target.value; render(); };
+  document.getElementById('prev-btn').onclick=()=>{
+    const i=allDates.indexOf(selectedDate);
+    if(i>0){ selectedDate=allDates[i-1]; sel.value=selectedDate; render(); }
+  };
+  document.getElementById('next-btn').onclick=()=>{
+    const i=allDates.indexOf(selectedDate);
+    if(i<allDates.length-1){ selectedDate=allDates[i+1]; sel.value=selectedDate; render(); }
+  };
+}
+
+function initMap() {
+  map=L.map('map',{zoomControl:false}).setView([34.737,126.372],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  markersLayer=L.layerGroup().addTo(map);
+  routeLayer=L.layerGroup().addTo(map);
+}
+
+function updateMap() {
+  if(!map) return;
+  markersLayer.clearLayers();
+  routeLayer.clearLayers();
+  const locMap={};
+  LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
+
+  LOCATIONS.forEach(loc=>{
+    const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
+    if(!lat||!lng) return;
+    const color=TEAM_COLOR[loc['팀']]||'#64748b';
+    L.circleMarker([lat,lng],{radius:7,fillColor:color,color:'#fff',weight:2,fillOpacity:0.85})
+      .bindPopup(`<b>${loc['위치']}</b><br>팀: ${loc['팀']||'-'}`)
+      .addTo(markersLayer);
+    L.marker([lat,lng],{
+      icon:L.divIcon({className:'',html:`<div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.55);padding:1px 4px;border-radius:3px;white-space:nowrap;transform:translateY(-20px)">${loc['위치']}</div>`,iconAnchor:[0,0]}),
+      interactive:false
+    }).addTo(markersLayer);
+  });
+
+  MOVEMENT.filter(m=>m['날짜']===selectedDate).forEach(mv=>{
+    const from=locMap[mv['현재위치']], to=locMap[mv['이동후위치']];
+    if(!from||!to) return;
+    const fLat=parseFloat(from['위도']),fLng=parseFloat(from['경도']);
+    const tLat=parseFloat(to['위도']),tLng=parseFloat(to['경도']);
+    if(!fLat||!tLat) return;
+    L.polyline([[fLat,fLng],[tLat,tLng]],{color:'#f59e0b',weight:3,dashArray:'8,6'})
+      .bindPopup(`<b>${mv['호선']}호선</b><br>${mv['현재위치']} → ${mv['이동후위치']}`)
+      .addTo(routeLayer);
+    L.circleMarker([tLat,tLng],{radius:10,fillColor:'#f59e0b',color:'#fff',weight:2,fillOpacity:0.9}).addTo(routeLayer);
+  });
+}
+
+function updateMoveList() {
+  const el=document.getElementById('move-list');
+  const moves=MOVEMENT.filter(m=>m['날짜']===selectedDate);
+  if(!moves.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">🚢</div>이날 이동 계획이 없습니다</div>`; return; }
+  el.innerHTML=moves.map(m=>`
+    <div class="move-card">
+      <div class="move-header">
+        <div class="ship-num">${m['호선']}호선</div>
+        <div class="team-badge team-${m['담당팀']||'A'}">${m['담당팀']||'-'}팀</div>
+      </div>
+      <div class="move-route">
+        <span class="loc-from">${m['현재위치']||'-'}</span>
+        <span class="arrow">→</span>
+        <span class="loc-to">${m['이동후위치']||'-'}</span>
+      </div>
+      <div class="move-reason">${m['비고']||''}</div>
+    </div>`).join('');
+}
+
+function updateIceTable() {
+  const tbody=document.getElementById('ice-tbody');
+  const rows=WORKFORCE.filter(w=>w['날짜']===selectedDate)
+    .sort((a,b)=>parseInt(b['작업인원']||0)-parseInt(a['작업인원']||0));
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`; return; }
+  tbody.innerHTML=rows.map(r=>{
+    const n=parseInt(r['작업인원']||0);
+    return `<tr>
+      <td class="num">${r['호선']}</td>
+      <td><span class="team-badge team-${r['담당팀']||'A'}" style="font-size:10px;padding:2px 7px">${r['담당팀']||'-'}</span></td>
+      <td class="num">${n.toLocaleString()}</td>
+      <td class="ice">${n.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateKPI() {
+  const wf=WORKFORCE.filter(w=>w['날짜']===selectedDate);
+  const total=wf.reduce((s,r)=>s+parseInt(r['작업인원']||0),0);
+  const moves=MOVEMENT.filter(m=>m['날짜']===selectedDate).length;
+  document.getElementById('kpi-workers').textContent=total.toLocaleString();
+  document.getElementById('kpi-ice').textContent=total.toLocaleString();
+  document.getElementById('kpi-ships').textContent=moves;
+}
+
+function updateTeam() {
+  const el=document.getElementById('team-list');
+  if(!CONTACTS.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div>담당자 정보가 없습니다</div>`; return; }
+  el.innerHTML=['A','B','C'].map(team=>{
+    const members=CONTACTS.filter(c=>c['팀']===team);
+    if(!members.length) return '';
+    return `<div class="contact-card">
+      <div class="contact-header">
+        <div class="team-title" style="color:${TEAM_COLOR[team]}">${team}팀</div>
+        <div class="team-badge team-${team}">${team}팀</div>
+      </div>
+      ${members.map(m=>`
+        <div class="contact-row">
+          <div><div class="contact-role">${m['역할']||''}</div><div class="contact-name">${m['이름']||''}</div></div>
+          <a class="call-btn" href="tel:${m['연락처']||''}">📞 ${m['연락처']||'-'}</a>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((btn,i)=>{
+    btn.classList.toggle('active',['map','move','ice','team'][i]===tab);
+  });
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+tab).classList.add('active');
+  if(tab==='map') setTimeout(()=>map&&map.invalidateSize(),100);
+}
+
+function render() { updateKPI(); updateMap(); updateMoveList(); updateIceTable(); updateTeam(); }
+
+loadAllData();
+</script>
+</body>
+</html>
