@@ -86,35 +86,6 @@
   .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
   .empty-icon { font-size:32px; margin-bottom:8px; }
   .last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
-
-
-  /* ── ADMIN / ZONE EDITOR ── */
-  .admin-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
-  .admin-title { font-size:15px; font-weight:700; margin-bottom:6px; }
-  .admin-desc { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:12px; }
-  .admin-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-  .admin-row select, .admin-row input { flex:1; min-width:120px; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:9px 10px; border-radius:8px; font-size:13px; font-family:inherit; }
-  .admin-btn { background:rgba(0,194,255,0.12); border:1px solid rgba(0,194,255,0.35); color:var(--accent-a); padding:10px 14px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .admin-btn.danger { background:rgba(255,107,107,0.12); border-color:rgba(255,107,107,0.35); color:var(--accent-c); }
-  .zone-result { width:100%; min-height:80px; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:8px; font-size:12px; font-family:monospace; line-height:1.5; }
-  .toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#111827; border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:10px; font-size:12px; z-index:10000; box-shadow:0 4px 18px rgba(0,0,0,.35); display:none; }
-
-  #zone-editor-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9000; align-items:flex-end; justify-content:center; }
-  .zone-editor-box { background:#fff; color:#1c1c1e; width:100%; max-width:900px; max-height:92vh; border-radius:16px 16px 0 0; overflow:hidden; display:flex; flex-direction:column; }
-  .zone-editor-head { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e5e7eb; }
-  .zone-editor-title { font-size:15px; font-weight:700; }
-  .zone-editor-sub { font-size:11px; color:#64748b; margin-top:2px; }
-  .zone-editor-close { border:none; background:transparent; font-size:22px; color:#64748b; cursor:pointer; padding:2px 8px; }
-  .zone-mode-row { padding:8px 10px; display:flex; gap:6px; border-bottom:1px solid #eef2f7; }
-  .zone-mode-btn { flex:1; padding:8px 0; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#475569; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
-  .zone-mode-btn.active { border-color:#006ad6; background:#dbeafe; color:#006ad6; }
-  .zone-option-row { padding:8px 10px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #eef2f7; flex-wrap:wrap; font-size:12px; color:#64748b; }
-  .zone-option-row input { width:76px; padding:6px 8px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; }
-  #zone-edit-map { height:520px; width:100%; }
-  .zone-save-row { padding:10px; border-top:1px solid #e5e7eb; }
-  .zone-save-row button { width:100%; padding:13px; border:none; border-radius:12px; background:#006ad6; color:#fff; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; }
-  @media(max-width:640px){ #zone-edit-map{height:430px;} }
-
 </style>
 </head>
 <body>
@@ -154,7 +125,6 @@
     <button class="tab-btn" onclick="switchTab('move')">🚢 이동</button>
     <button class="tab-btn" onclick="switchTab('ice')">🧊 수량</button>
     <button class="tab-btn" onclick="switchTab('team')">👥 담당자</button>
-    <button class="tab-btn" onclick="switchTab('admin')">⚙️ 관리</button>
   </div>
 
   <div class="section active" id="sec-map">
@@ -179,66 +149,8 @@
   </div>
 
   <div class="section" id="sec-team"><div id="team-list"></div></div>
-
-  <div class="section" id="sec-admin">
-    <div class="admin-card">
-      <div class="admin-title">🗺️ 위치/구역 설정</div>
-      <div class="admin-desc">
-        위치를 선택하고 지도에서 원형/폴리곤 구역을 지정하세요. 현재 파일은 공개 CSV 조회 방식이라 시트에 직접 저장되지는 않고, 아래 결과를 복사해서 <b>위치</b> 시트에 붙여넣는 방식입니다.
-      </div>
-      <div class="admin-row">
-        <select id="zone-target-select"></select>
-        <button class="admin-btn" onclick="openZoneEditor()">지도에서 구역 지정</button>
-      </div>
-      <textarea class="zone-result" id="zone-result" readonly placeholder="저장 결과가 여기에 표시됩니다."></textarea>
-      <div class="admin-row" style="margin-top:10px;margin-bottom:0">
-        <button class="admin-btn" onclick="copyZoneResult()">결과 복사</button>
-        <button class="admin-btn danger" onclick="clearZoneResult()">초기화</button>
-      </div>
-    </div>
-    <div class="admin-card">
-      <div class="admin-title">📊 위치 시트 컬럼</div>
-      <div class="admin-desc" style="margin-bottom:0">
-        위치 | 팀 | 위도 | 경도 | 구역유형 | 반경m | 폴리곤좌표 | 표시여부 | 비고<br>
-        구역유형은 <b>circle</b> 또는 <b>polygon</b>, 표시여부는 <b>Y/N</b>으로 입력하세요.
-      </div>
-    </div>
-  </div>
   <div class="last-updated" id="last-updated"></div>
 </div>
-
-
-
-<div id="zone-editor-modal">
-  <div class="zone-editor-box">
-    <div class="zone-editor-head">
-      <div>
-        <div class="zone-editor-title" id="zone-editor-title">구역 지정</div>
-        <div class="zone-editor-sub" id="zone-editor-hint">원형 또는 폴리곤을 선택하세요</div>
-      </div>
-      <button class="zone-editor-close" onclick="closeZoneEditor()">×</button>
-    </div>
-    <div class="zone-mode-row">
-      <button class="zone-mode-btn active" id="zone-mode-circle" onclick="setZoneDrawMode('circle')">⭕ 원형</button>
-      <button class="zone-mode-btn" id="zone-mode-polygon" onclick="setZoneDrawMode('polygon')">🔷 폴리곤</button>
-      <button class="zone-mode-btn" onclick="gotoZoneMyLocation()">📍 현재위치</button>
-    </div>
-    <div class="zone-option-row" id="circle-option-row">
-      <span>반경</span>
-      <input type="number" id="zone-radius" value="80" min="10" max="1000" step="10" onchange="redrawZoneShape()">
-      <span>m · 지도를 클릭해서 중심점을 지정하세요</span>
-      <button class="zone-mode-btn" style="flex:0 0 auto;padding:6px 10px" onclick="clearZoneShape()">초기화</button>
-    </div>
-    <div class="zone-option-row" id="polygon-option-row" style="display:none">
-      <span id="polygon-hint">지도를 클릭해서 꼭짓점을 추가하세요. 3개 이상이면 저장 가능합니다.</span>
-      <button class="zone-mode-btn" style="flex:0 0 auto;padding:6px 10px" onclick="undoZonePoint()">↩ 되돌리기</button>
-      <button class="zone-mode-btn" style="flex:0 0 auto;padding:6px 10px" onclick="clearZoneShape()">초기화</button>
-    </div>
-    <div id="zone-edit-map"></div>
-    <div class="zone-save-row"><button onclick="confirmZoneEditor()">이 구역으로 적용</button></div>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
 
 <script>
 const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQBff75LSjUiUEc-JK1yQ-gqMYdNsTDDsbwoKGKtcZgmq0gdDle-UkqF5RuBccGmZPsWQZDe0Ut9wet/pub?single=true&output=csv';
@@ -252,9 +164,7 @@ const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
 
 let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
 let selectedDate='', allDates=[];
-let map, markersLayer, routeLayer, iceLayer;
-let zoneEditMap, zoneEditLayer, zoneEditMarkerLayer;
-let zoneDrawMode="circle", zoneCenter=null, zonePolygonPoints=[], zoneSelectedLocation=null;
+let map, markersLayer, routeLayer;
 
 // CSV 파싱
 function parseCSV(text) {
@@ -306,32 +216,11 @@ async function loadAllData() {
       selectedDate = allDates.find(d=>d>=today) || allDates[allDates.length-1] || '';
     }
     initDateSelect();
-    function render() {
-  updateKPI();
-  updateMap();
-  updateMoveList();
-  updateIceTable();
-  updateTeam();
-  updateIceMapOverlay();
-}
+    render();
     document.getElementById('last-updated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('app').style.display='block';
-function initMap() {
-  map = L.map('map', { zoomControl: false }).setView([34.737, 126.372], 14);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
-
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-  markersLayer = L.layerGroup().addTo(map);
-  routeLayer = L.layerGroup().addTo(map);
-  iceLayer = L.layerGroup().addTo(map);
-
-  map.on('zoomend', updateIceMapOverlay);
-}
+    if (!map) initMap();
     setTimeout(()=>map&&map.invalidateSize(),200);
   } catch(e) {
     document.getElementById('loading-screen').innerHTML=`
@@ -386,24 +275,8 @@ function updateMap() {
     const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
     if(!lat||!lng) return;
     const color=TEAM_COLOR[loc['팀']]||'#64748b';
-    const visible=(loc['표시여부']||loc['사용여부']||'Y').toUpperCase();
-    const zoneType=(loc['구역유형']||'').toLowerCase();
-
-    if(visible!=='N'){
-      if(zoneType==='circle'){
-        const radius=parseFloat(loc['반경m']||80);
-        L.circle([lat,lng],{radius:radius,color:color,fillColor:color,fillOpacity:0.12,weight:2}).addTo(markersLayer);
-      }
-      if(zoneType==='polygon' && loc['폴리곤좌표']){
-        const pts=parsePolygonText(loc['폴리곤좌표']);
-        if(pts.length>=3){
-          L.polygon(pts,{color:color,fillColor:color,fillOpacity:0.12,weight:2}).addTo(markersLayer);
-        }
-      }
-    }
-
     L.circleMarker([lat,lng],{radius:7,fillColor:color,color:'#fff',weight:2,fillOpacity:0.85})
-      .bindPopup(`<b>${loc['위치']}</b><br>팀: ${loc['팀']||'-'}<br>${zoneType?('구역: '+zoneType):''}`)
+      .bindPopup(`<b>${loc['위치']}</b><br>팀: ${loc['팀']||'-'}`)
       .addTo(markersLayer);
     L.marker([lat,lng],{
       icon:L.divIcon({className:'',html:`<div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.55);padding:1px 4px;border-radius:3px;white-space:nowrap;transform:translateY(-20px)">${loc['위치']}</div>`,iconAnchor:[0,0]}),
@@ -422,12 +295,6 @@ function updateMap() {
       .addTo(routeLayer);
     L.circleMarker([tLat,tLng],{radius:10,fillColor:'#f59e0b',color:'#fff',weight:2,fillOpacity:0.9}).addTo(routeLayer);
   });
-}
-
-function parsePolygonText(text){
-  return String(text||'').split(';')
-    .map(p=>p.split(',').map(v=>parseFloat(v.trim())))
-    .filter(p=>p.length===2 && !isNaN(p[0]) && !isNaN(p[1]));
 }
 
 function updateMoveList() {
@@ -494,184 +361,16 @@ function updateTeam() {
   }).join('');
 }
 
-
-function updateAdminLocationSelect(){
-  const sel=document.getElementById('zone-target-select');
-  if(!sel) return;
-  sel.innerHTML='';
-  LOCATIONS.forEach((l,idx)=>{
-    const opt=document.createElement('option');
-    opt.value=idx;
-    opt.textContent=`${l['위치']||'이름없음'} (${l['팀']||'-'}팀)`;
-    sel.appendChild(opt);
-  });
-}
-
-function showToast(msg){
-  const el=document.getElementById('toast');
-  if(!el) return;
-  el.textContent=msg;
-  el.style.display='block';
-  clearTimeout(showToast._t);
-  showToast._t=setTimeout(()=>{el.style.display='none';},1800);
-}
-
-function openZoneEditor(){
-  const sel=document.getElementById('zone-target-select');
-  if(!sel || !LOCATIONS.length){ showToast('위치 데이터가 없습니다'); return; }
-  zoneSelectedLocation=LOCATIONS[parseInt(sel.value||0,10)];
-  document.getElementById('zone-editor-title').textContent=`구역 지정 · ${zoneSelectedLocation['위치']||''}`;
-  document.getElementById('zone-editor-modal').style.display='flex';
-
-  setTimeout(()=>{
-    if(!zoneEditMap){
-      zoneEditMap=L.map('zone-edit-map',{zoomControl:true}).setView([34.737,126.372],14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(zoneEditMap);
-      zoneEditLayer=L.layerGroup().addTo(zoneEditMap);
-      zoneEditMarkerLayer=L.layerGroup().addTo(zoneEditMap);
-      zoneEditMap.on('click', onZoneMapClick);
-    }
-    zoneEditMap.invalidateSize();
-    loadSelectedZoneShape();
-  },150);
-}
-
-function closeZoneEditor(){
-  document.getElementById('zone-editor-modal').style.display='none';
-}
-
-function loadSelectedZoneShape(){
-  zoneEditLayer.clearLayers();
-  zoneEditMarkerLayer.clearLayers();
-  zonePolygonPoints=[];
-  zoneCenter=null;
-  if(!zoneSelectedLocation) return;
-  const lat=parseFloat(zoneSelectedLocation['위도']), lng=parseFloat(zoneSelectedLocation['경도']);
-  const color=TEAM_COLOR[zoneSelectedLocation['팀']]||'#006ad6';
-  if(lat&&lng){
-    zoneCenter=[lat,lng];
-    zoneEditMap.setView([lat,lng],15);
-    L.circleMarker([lat,lng],{radius:7,fillColor:color,color:'#fff',weight:2,fillOpacity:.9}).addTo(zoneEditMarkerLayer)
-      .bindPopup(zoneSelectedLocation['위치']||'선택 위치');
-  }
-  const zt=(zoneSelectedLocation['구역유형']||'circle').toLowerCase();
-  setZoneDrawMode(zt==='polygon'?'polygon':'circle');
-  if(zt==='polygon' && zoneSelectedLocation['폴리곤좌표']){
-    zonePolygonPoints=parsePolygonText(zoneSelectedLocation['폴리곤좌표']);
-  }
-  if(zoneSelectedLocation['반경m']) document.getElementById('zone-radius').value=zoneSelectedLocation['반경m'];
-  redrawZoneShape();
-}
-
-function setZoneDrawMode(mode){
-  zoneDrawMode=mode;
-  document.getElementById('zone-mode-circle').classList.toggle('active',mode==='circle');
-  document.getElementById('zone-mode-polygon').classList.toggle('active',mode==='polygon');
-  document.getElementById('circle-option-row').style.display=mode==='circle'?'flex':'none';
-  document.getElementById('polygon-option-row').style.display=mode==='polygon'?'flex':'none';
-  document.getElementById('zone-editor-hint').textContent=mode==='circle'?'지도를 클릭해서 원형 구역 중심을 지정하세요':'지도를 클릭해서 폴리곤 꼭짓점을 추가하세요';
-  redrawZoneShape();
-}
-
-function onZoneMapClick(e){
-  if(zoneDrawMode==='circle'){
-    zoneCenter=[e.latlng.lat,e.latlng.lng];
-  }else{
-    zonePolygonPoints.push([e.latlng.lat,e.latlng.lng]);
-  }
-  redrawZoneShape();
-}
-
-function redrawZoneShape(){
-  if(!zoneEditLayer) return;
-  zoneEditLayer.clearLayers();
-  const color=TEAM_COLOR[(zoneSelectedLocation||{})['팀']]||'#006ad6';
-  if(zoneDrawMode==='circle' && zoneCenter){
-    const radius=parseFloat(document.getElementById('zone-radius').value||80);
-    L.circle(zoneCenter,{radius:radius,color:color,fillColor:color,fillOpacity:.18,weight:2}).addTo(zoneEditLayer);
-    L.circleMarker(zoneCenter,{radius:5,fillColor:color,color:'#fff',weight:2,fillOpacity:1}).addTo(zoneEditLayer);
-  }
-  if(zoneDrawMode==='polygon'){
-    zonePolygonPoints.forEach((p,i)=>{
-      L.circleMarker(p,{radius:5,fillColor:color,color:'#fff',weight:2,fillOpacity:1}).bindTooltip(String(i+1),{permanent:true,direction:'center',className:''}).addTo(zoneEditLayer);
-    });
-    if(zonePolygonPoints.length>=2) L.polyline(zonePolygonPoints,{color:color,weight:2,dashArray:'5,5'}).addTo(zoneEditLayer);
-    if(zonePolygonPoints.length>=3) L.polygon(zonePolygonPoints,{color:color,fillColor:color,fillOpacity:.18,weight:2}).addTo(zoneEditLayer);
-    const hint=document.getElementById('polygon-hint');
-    if(hint) hint.textContent=`꼭짓점 ${zonePolygonPoints.length}개 · ${zonePolygonPoints.length>=3?'저장 가능':'3개 이상 필요'}`;
-  }
-}
-
-function clearZoneShape(){
-  zonePolygonPoints=[];
-  zoneCenter=null;
-  redrawZoneShape();
-}
-
-function undoZonePoint(){
-  zonePolygonPoints.pop();
-  redrawZoneShape();
-}
-
-function gotoZoneMyLocation(){
-  if(!navigator.geolocation){ showToast('GPS를 사용할 수 없습니다'); return; }
-  navigator.geolocation.getCurrentPosition(pos=>{
-    const p=[pos.coords.latitude,pos.coords.longitude];
-    zoneEditMap.setView(p,17);
-    if(zoneDrawMode==='circle') zoneCenter=p;
-    redrawZoneShape();
-  },()=>showToast('현재 위치를 가져오지 못했습니다'));
-}
-
-function confirmZoneEditor(){
-  if(!zoneSelectedLocation) return;
-  const loc=zoneSelectedLocation;
-  if(zoneDrawMode==='circle'){
-    if(!zoneCenter){ showToast('원형 중심점을 찍어주세요'); return; }
-    loc['위도']=zoneCenter[0].toFixed(6);
-    loc['경도']=zoneCenter[1].toFixed(6);
-    loc['구역유형']='circle';
-    loc['반경m']=document.getElementById('zone-radius').value||80;
-    loc['폴리곤좌표']='';
-  }else{
-    if(zonePolygonPoints.length<3){ showToast('폴리곤은 꼭짓점 3개 이상 필요합니다'); return; }
-    const center=zonePolygonPoints.reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(v=>v/zonePolygonPoints.length);
-    loc['위도']=center[0].toFixed(6);
-    loc['경도']=center[1].toFixed(6);
-    loc['구역유형']='polygon';
-    loc['반경m']='';
-    loc['폴리곤좌표']=zonePolygonPoints.map(p=>`${p[0].toFixed(6)},${p[1].toFixed(6)}`).join(';');
-  }
-  loc['표시여부']=loc['표시여부']||'Y';
-  const row=[loc['위치']||'',loc['팀']||'',loc['위도']||'',loc['경도']||'',loc['구역유형']||'',loc['반경m']||'',loc['폴리곤좌표']||'',loc['표시여부']||'Y',loc['비고']||''].join('\t');
-  document.getElementById('zone-result').value=row;
-  updateMap();
-  closeZoneEditor();
-  showToast('구역 적용 완료 · 결과를 위치 시트에 붙여넣으세요');
-}
-
-async function copyZoneResult(){
-  const txt=document.getElementById('zone-result').value;
-  if(!txt){ showToast('복사할 결과가 없습니다'); return; }
-  try{ await navigator.clipboard.writeText(txt); showToast('복사 완료'); }
-  catch(e){ showToast('복사 실패 · 직접 선택해서 복사하세요'); }
-}
-
-function clearZoneResult(){
-  document.getElementById('zone-result').value='';
-}
-
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((btn,i)=>{
-    btn.classList.toggle('active',['map','move','ice','team','admin'][i]===tab);
+    btn.classList.toggle('active',['map','move','ice','team'][i]===tab);
   });
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-'+tab).classList.add('active');
   if(tab==='map') setTimeout(()=>map&&map.invalidateSize(),100);
-  if(tab==='admin') updateAdminLocationSelect();
 }
 
-function render() { updateKPI(); updateMap(); updateMoveList(); updateIceTable(); updateTeam(); updateAdminLocationSelect(); }
+function render() { updateKPI(); updateMap(); updateMoveList(); updateIceTable(); updateTeam(); }
 
 loadAllData();
 </script>
