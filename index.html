@@ -681,8 +681,9 @@ function updateIceTable() {
     const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
     const badgeClass=`team-${team}`;
     const iceClass=`ice-${team}`;
-    const mvRow=MOVEMENT.find(m=>String(m['호선']).trim()===String(r['호선']).trim()&&String(m['날짜']).trim()===selectedDate);
-    const remark=(mvRow?.['비고']||'').trim()||'-';
+const curLoc=getCurrentLocation(r['호선'], selectedDate);
+    const locRow=curLoc ? LOCATIONS.find(l=>(l['위치']||'').trim()===curLoc) : null;
+    const remark=(locRow?.['비고']||'').trim()||'-';
     return `<tr>
       <td class="num">${r['호선']}</td>
       <td style="font-size:12px;color:var(--muted)">${remark}</td>
