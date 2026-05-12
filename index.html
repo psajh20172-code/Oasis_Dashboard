@@ -41,7 +41,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 .tab-btn.active { background:var(--accent-a); border-color:var(--accent-a); color:#000; font-weight:700; }
 .section { display:none; padding:0 16px; }
 .section.active { display:block; }
-#map { width:100%; height:340px; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
+#map { width:100%; height:400px; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
 .map-legend { display:flex; gap:12px; padding:8px 0; flex-wrap:wrap; }
 .legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
 .legend-dot { width:10px; height:10px; border-radius:50%; }
@@ -65,7 +65,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 .table-wrap td { padding:10px 12px; border-bottom:1px solid rgba(30,45,69,0.5); vertical-align:middle; }
 .table-wrap tr:last-child td { border-bottom:none; }
 .num { font-weight:700; }
-/* 팀별 얼음물 색상 */
 .ice-A { color:var(--accent-a); font-weight:700; }
 .ice-B { color:var(--accent-b); font-weight:700; }
 .ice-C { color:var(--accent-c); font-weight:700; }
@@ -80,6 +79,17 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
 .empty-icon { font-size:32px; margin-bottom:8px; }
 .last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
+/* 지도 팝업 커스텀 */
+.leaflet-popup-content-wrapper { background:#1a2235; border:1px solid #1e2d45; color:#e2e8f0; border-radius:10px; }
+.leaflet-popup-tip { background:#1a2235; }
+.map-popup-title { font-size:14px; font-weight:700; margin-bottom:6px; }
+.map-popup-team { font-size:11px; margin-bottom:8px; }
+.map-popup-total { font-size:22px; font-weight:800; line-height:1; margin-bottom:4px; }
+.map-popup-unit { font-size:10px; color:#64748b; margin-bottom:10px; }
+.map-popup-ships { border-top:1px solid #1e2d45; padding-top:8px; }
+.map-popup-ship-row { display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
+.map-popup-ship-num { color:#94a3b8; }
+.map-popup-ship-ice { font-weight:700; }
 </style>
 </head>
 <body>
@@ -128,6 +138,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
       <div class="legend-item"><div class="legend-dot" style="background:#00e5a0"></div>B팀</div>
       <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>C팀</div>
       <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>이동예정</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>팀 미배정</div>
     </div>
   </div>
 
@@ -136,7 +147,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
   <div class="section" id="sec-ice">
     <div class="table-wrap">
       <table>
-        <!-- 작업인원 컬럼 삭제, 팀+얼음물만 표시 -->
         <thead><tr><th>호선</th><th>팀</th><th>얼음물</th></tr></thead>
         <tbody id="ice-tbody"></tbody>
       </table>
@@ -159,62 +169,59 @@ const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
 
 let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
 let selectedDate='', allDates=[];
-let map, markersLayer, routeLayer;
+let map, markersLayer, routeLayer, bubbleLayer;
+let currentZoom = 14;
 
-// ── 이동 판정: 전날 대비 이동후위치가 바뀐 경우만 이동으로 간주 ────────
-// Movement는 날짜/호선별로 정렬되어 있음
-// 같은 호선에서 전날 이동후위치 != 오늘 이동후위치 → 이동한 것
+// ── 이동 판정: 전날 대비 이동후위치가 바뀐 경우만 이동으로 간주 ──
 function getMovesForDate(date) {
-  // 해당 날짜의 모든 Movement 행
   const todayRows = MOVEMENT.filter(m => String(m['날짜']).trim() === date);
-
   return todayRows.filter(mv => {
     const shipStr = String(mv['호선']).trim();
     const todayDest = (mv['이동후위치'] || '').trim();
     if (!todayDest) return false;
-
-    // 같은 호선의 행들을 날짜순으로 정렬
     const shipRows = MOVEMENT
       .filter(m => String(m['호선']).trim() === shipStr)
       .sort((a, b) => String(a['날짜']).localeCompare(String(b['날짜'])));
-
-    // 오늘 이전 마지막 행 찾기 (= 전날 위치)
-    const prevRow = [...shipRows]
-      .reverse()
-      .find(m => String(m['날짜']).trim() < date);
-
-    // 전날 기록이 없으면(= 처음 등장) 이동으로 간주
+    const prevRow = [...shipRows].reverse().find(m => String(m['날짜']).trim() < date);
     if (!prevRow) return true;
-
     const prevDest = (prevRow['이동후위치'] || '').trim();
-    // 전날과 다르면 이동한 것
     return todayDest !== prevDest;
   });
 }
 
-// ── 호선+날짜 → 현재 위치(이동후위치) 조회 ──────────────────────────
-// 해당 날짜 기준으로 가장 최근 Movement 행의 이동후위치 반환
+// ── 호선+날짜 → 현재 위치 조회 ──
 function getCurrentLocation(shipNo, date) {
   const shipStr = String(shipNo).trim();
-
-  // 같은 호선의 행 중 해당 날짜 이하인 것들을 날짜순 정렬
   const candidates = MOVEMENT
     .filter(m => String(m['호선']).trim() === shipStr && String(m['날짜']).trim() <= date)
     .sort((a, b) => String(b['날짜']).localeCompare(String(a['날짜'])));
-
   return candidates.length ? (candidates[0]['이동후위치'] || '').trim() : null;
 }
 
-// ── 호선+날짜 → 팀 조회 ──────────────────────────────────────────────
-// 현재 위치(이동후위치) → Locations 팀
+// ── 호선+날짜 → 팀 조회 ──
 function getTeamForShip(shipNo, date) {
   const destination = getCurrentLocation(shipNo, date);
   if (!destination) return null;
-
   const loc = LOCATIONS.find(l => (l['위치'] || '').trim() === destination);
   return loc ? (loc['팀'] || '').trim() || null : null;
 }
-// ─────────────────────────────────────────────────────────────────────
+
+// ── 위치별 얼음물 집계: { 위치명: { team, total, ships:[{호선,수량}] } } ──
+function getIceByLocation(date) {
+  const result = {};
+  const wf = WORKFORCE.filter(w => String(w['날짜']).trim() === date);
+  wf.forEach(r => {
+    const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], date) || '';
+    if (!team) return; // 팀 미배정 제외
+    const loc = getCurrentLocation(r['호선'], date);
+    if (!loc) return;
+    if (!result[loc]) result[loc] = { team, total:0, ships:[] };
+    const n = parseInt(r['작업인원']||0);
+    result[loc].total += n;
+    result[loc].ships.push({ ship: r['호선'], ice: n });
+  });
+  return result;
+}
 
 // CSV 파싱
 function parseCSV(text) {
@@ -257,9 +264,7 @@ async function loadAllData() {
       fetchCSV(URLS.workforce), fetchCSV(URLS.movement),
       fetchCSV(URLS.contacts),  fetchCSV(URLS.locations),
     ]);
-    const dates = [...new Set(
-      WORKFORCE.map(r=>r['날짜']).filter(Boolean)
-    )].sort();
+    const dates = [...new Set(WORKFORCE.map(r=>r['날짜']).filter(Boolean))].sort();
     allDates = dates;
     if (!selectedDate || !allDates.includes(selectedDate)) {
       const today = new Date().toISOString().slice(0,10);
@@ -307,32 +312,47 @@ function initDateSelect() {
 }
 
 function initMap() {
-  map=L.map('map',{zoomControl:false}).setView([34.737,126.372],14);
+  map = L.map('map',{zoomControl:false}).setView([34.737,126.372],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
-  markersLayer=L.layerGroup().addTo(map);
-  routeLayer=L.layerGroup().addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+  routeLayer   = L.layerGroup().addTo(map);
+  bubbleLayer  = L.layerGroup().addTo(map);
+
+  // 줌 변경시 버블/마커 재렌더
+  map.on('zoomend', () => {
+    currentZoom = map.getZoom();
+    updateMapBubbles();
+  });
 }
 
 function updateMap() {
   if(!map) return;
   markersLayer.clearLayers();
   routeLayer.clearLayers();
+
   const locMap={};
   LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
+
+  // 위치 점 마커 (팀 미배정 포함 모든 위치)
   LOCATIONS.forEach(loc=>{
     const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
     if(!lat||!lng) return;
     const color=TEAM_COLOR[loc['팀']]||'#64748b';
-    L.circleMarker([lat,lng],{radius:7,fillColor:color,color:'#fff',weight:2,fillOpacity:0.85})
-      .bindPopup(`<b>${loc['위치']}</b><br>팀: ${loc['팀']||'-'}`)
+    L.circleMarker([lat,lng],{radius:5,fillColor:color,color:'#fff',weight:1.5,fillOpacity:0.7})
       .addTo(markersLayer);
+    // 위치 라벨 (작은 마커)
     L.marker([lat,lng],{
-      icon:L.divIcon({className:'',html:`<div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.55);padding:1px 4px;border-radius:3px;white-space:nowrap;transform:translateY(-20px)">${loc['위치']}</div>`,iconAnchor:[0,0]}),
+      icon:L.divIcon({
+        className:'',
+        html:`<div style="font-size:9px;color:#fff;background:rgba(0,0,0,0.6);padding:1px 4px;border-radius:3px;white-space:nowrap;transform:translate(-50%,-22px)">${loc['위치']}</div>`,
+        iconAnchor:[0,0]
+      }),
       interactive:false
     }).addTo(markersLayer);
   });
-  // 이동 경로: 전날 대비 위치가 바뀐 것만 표시
+
+  // 이동 경로 화살표
   getMovesForDate(selectedDate).forEach(mv=>{
     const shipStr = String(mv['호선']).trim();
     const shipRows = MOVEMENT
@@ -341,7 +361,6 @@ function updateMap() {
     const prevRow = [...shipRows].reverse().find(r => String(r['날짜']).trim() < selectedDate);
     const fromName = prevRow ? (prevRow['이동후위치']||'').trim() : '';
     const toName = (mv['이동후위치']||'').trim();
-
     const from=locMap[fromName], to=locMap[toName];
     if(!from||!to) return;
     const fLat=parseFloat(from['위도']),fLng=parseFloat(from['경도']);
@@ -350,13 +369,124 @@ function updateMap() {
     L.polyline([[fLat,fLng],[tLat,tLng]],{color:'#f59e0b',weight:3,dashArray:'8,6'})
       .bindPopup(`<b>${mv['호선']}호선</b><br>${fromName} → ${toName}`)
       .addTo(routeLayer);
-    L.circleMarker([tLat,tLng],{radius:10,fillColor:'#f59e0b',color:'#fff',weight:2,fillOpacity:0.9}).addTo(routeLayer);
+    L.circleMarker([tLat,tLng],{radius:8,fillColor:'#f59e0b',color:'#fff',weight:2,fillOpacity:0.9})
+      .addTo(routeLayer);
   });
+
+  updateMapBubbles();
+}
+
+// ── 줌 레벨에 따라 버블(팀 총합) 또는 위치별 상세 마커 표시 ──
+function updateMapBubbles() {
+  if(!map) return;
+  bubbleLayer.clearLayers();
+
+  const locMap={};
+  LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
+
+  const iceByLoc = getIceByLocation(selectedDate);
+  const zoom = map.getZoom();
+
+  if (zoom < 15) {
+    // ── 줌 아웃: 팀별 버블 (팀 총합을 팀 중심 위치에 표시) ──
+    const teamTotals = { A:{total:0,lats:[],lngs:[]}, B:{total:0,lats:[],lngs:[]}, C:{total:0,lats:[],lngs:[]} };
+    Object.entries(iceByLoc).forEach(([locName, data]) => {
+      const locInfo = locMap[locName];
+      if(!locInfo) return;
+      const lat=parseFloat(locInfo['위도']), lng=parseFloat(locInfo['경도']);
+      if(!lat||!lng) return;
+      const t = data.team;
+      if(!teamTotals[t]) return;
+      teamTotals[t].total += data.total;
+      teamTotals[t].lats.push(lat);
+      teamTotals[t].lngs.push(lng);
+    });
+
+    Object.entries(teamTotals).forEach(([team, data]) => {
+      if(!data.total || !data.lats.length) return;
+      const avgLat = data.lats.reduce((s,v)=>s+v,0)/data.lats.length;
+      const avgLng = data.lngs.reduce((s,v)=>s+v,0)/data.lngs.length;
+      const color = TEAM_COLOR[team];
+      const r = Math.max(30, Math.min(60, 20 + data.total / 8));
+
+      // 버블 (반투명 원)
+      L.circleMarker([avgLat,avgLng],{
+        radius: r,
+        fillColor: color,
+        color: color,
+        weight: 2,
+        fillOpacity: 0.25
+      }).addTo(bubbleLayer);
+
+      // 수량 텍스트
+      L.marker([avgLat,avgLng],{
+        icon: L.divIcon({
+          className:'',
+          html:`<div style="
+            color:#fff;font-weight:800;text-align:center;
+            text-shadow:0 2px 6px rgba(0,0,0,0.8);
+            transform:translate(-50%,-50%);
+            pointer-events:none;
+          ">
+            <div style="font-size:28px;line-height:1">${data.total}</div>
+            <div style="font-size:11px;opacity:0.85">${team}팀</div>
+          </div>`,
+          iconAnchor:[0,0]
+        }),
+        interactive:false
+      }).addTo(bubbleLayer);
+    });
+
+  } else {
+    // ── 줌 인: 위치별 상세 마커 (얼음물 수량 + 클릭 팝업) ──
+    Object.entries(iceByLoc).forEach(([locName, data]) => {
+      const locInfo = locMap[locName];
+      if(!locInfo) return;
+      const lat=parseFloat(locInfo['위도']), lng=parseFloat(locInfo['경도']);
+      if(!lat||!lng) return;
+      const color = TEAM_COLOR[data.team] || '#64748b';
+
+      // 위치별 수량 뱃지
+      const marker = L.marker([lat,lng],{
+        icon: L.divIcon({
+          className:'',
+          html:`<div style="
+            background:${color};color:#000;font-weight:800;
+            border-radius:20px;padding:3px 9px;font-size:13px;
+            border:2px solid rgba(255,255,255,0.5);
+            box-shadow:0 2px 8px rgba(0,0,0,0.4);
+            white-space:nowrap;transform:translate(-50%,-50%);
+            cursor:pointer;
+          ">${data.total}</div>`,
+          iconAnchor:[0,0]
+        })
+      });
+
+      // 클릭시 팝업: 위치명, 팀, 총수량, 호선별 상세
+      const shipsHtml = data.ships
+        .sort((a,b)=>b.ice-a.ice)
+        .map(s=>`<div class="map-popup-ship-row">
+          <span class="map-popup-ship-num">${s.ship}호선</span>
+          <span class="map-popup-ship-ice" style="color:${color}">${s.ice}개</span>
+        </div>`).join('');
+
+      marker.bindPopup(`
+        <div style="min-width:150px">
+          <div class="map-popup-title">${locName}</div>
+          <div class="map-popup-team" style="color:${color}">${data.team}팀</div>
+          <div class="map-popup-total" style="color:${color}">${data.total}</div>
+          <div class="map-popup-unit">개 (얼음물)</div>
+          <div class="map-popup-ships">${shipsHtml}</div>
+        </div>
+      `, {maxWidth:220});
+
+      marker.addTo(bubbleLayer);
+    });
+  }
 }
 
 function updateMoveList() {
   const el=document.getElementById('move-list');
-  // 전날 대비 위치가 바뀐 것만 이동으로 표시
   const moves=getMovesForDate(selectedDate);
   if(!moves.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">🚢</div>이날 이동 계획이 없습니다</div>`; return; }
   el.innerHTML=moves.map(m=>{
@@ -364,15 +494,12 @@ function updateMoveList() {
     const team = (m['담당팀']||'').trim() || getTeamForShip(shipStr, selectedDate) || '';
     const badgeClass = team ? `team-${team}` : 'team-unknown';
     const badgeLabel = team ? `${team}팀` : '-';
-
-    // 전날 위치(= 이동 출발지) 계산
     const shipRows = MOVEMENT
       .filter(r => String(r['호선']).trim() === shipStr)
       .sort((a, b) => String(a['날짜']).localeCompare(String(b['날짜'])));
     const prevRow = [...shipRows].reverse().find(r => String(r['날짜']).trim() < selectedDate);
     const fromLoc = prevRow ? (prevRow['이동후위치']||'').trim() : '-';
     const toLoc = (m['이동후위치']||'').trim() || '-';
-
     return `
     <div class="move-card">
       <div class="move-header">
@@ -399,19 +526,25 @@ function updateIceTable() {
     return;
   }
 
-  tbody.innerHTML=rows.map(r=>{
-    const n = parseInt(r['작업인원']||0);
-
-    // 팀 조회: Workforce 자체 컬럼 우선 → Movement+Locations 체인
+  // 팀 배정된 호선만 표시
+  const filtered = rows.filter(r => {
     const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
+    return !!team;
+  });
 
-    const badgeClass   = team ? `team-${team}`   : 'team-unknown';
-    const badgeLabel   = team ? `${team}팀`       : '-';
-    const iceClass     = team ? `ice-${team}`     : 'ice-unknown';
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:#64748b;padding:30px">팀 배정된 호선 없음</td></tr>`;
+    return;
+  }
 
+  tbody.innerHTML=filtered.map(r=>{
+    const n = parseInt(r['작업인원']||0);
+    const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
+    const badgeClass = `team-${team}`;
+    const iceClass   = `ice-${team}`;
     return `<tr>
       <td class="num">${r['호선']}</td>
-      <td><span class="team-badge ${badgeClass}" style="font-size:10px;padding:2px 7px">${badgeLabel}</span></td>
+      <td><span class="team-badge ${badgeClass}" style="font-size:10px;padding:2px 7px">${team}팀</span></td>
       <td class="${iceClass}">${n.toLocaleString()}</td>
     </tr>`;
   }).join('');
@@ -419,10 +552,15 @@ function updateIceTable() {
 
 function updateKPI() {
   const wf=WORKFORCE.filter(w=>w['날짜']===selectedDate);
-  const total=wf.reduce((s,r)=>s+parseInt(r['작업인원']||0),0);
+  const totalWorkers=wf.reduce((s,r)=>s+parseInt(r['작업인원']||0),0);
+  // 팀 배정된 호선만 얼음물 합산
+  const totalIce=wf.reduce((s,r)=>{
+    const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
+    return team ? s+parseInt(r['작업인원']||0) : s;
+  },0);
   const moves=getMovesForDate(selectedDate).length;
-  document.getElementById('kpi-workers').textContent=total.toLocaleString();
-  document.getElementById('kpi-ice').textContent=total.toLocaleString();
+  document.getElementById('kpi-workers').textContent=totalWorkers.toLocaleString();
+  document.getElementById('kpi-ice').textContent=totalIce.toLocaleString();
   document.getElementById('kpi-ships').textContent=moves;
 }
 
