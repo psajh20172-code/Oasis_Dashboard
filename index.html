@@ -306,11 +306,32 @@ async function loadAllData() {
       selectedDate = allDates.find(d=>d>=today) || allDates[allDates.length-1] || '';
     }
     initDateSelect();
-    render();
+    function render() {
+  updateKPI();
+  updateMap();
+  updateMoveList();
+  updateIceTable();
+  updateTeam();
+  updateIceMapOverlay();
+}
     document.getElementById('last-updated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    if (!map) initMap();
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([34.737, 126.372], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  markersLayer = L.layerGroup().addTo(map);
+  routeLayer = L.layerGroup().addTo(map);
+  iceLayer = L.layerGroup().addTo(map);
+
+  map.on('zoomend', updateIceMapOverlay);
+}
     setTimeout(()=>map&&map.invalidateSize(),200);
   } catch(e) {
     document.getElementById('loading-screen').innerHTML=`
