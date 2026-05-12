@@ -616,6 +616,11 @@ function updateMoveList() {
 
 function updateIceTable() {
   const tbody=document.getElementById('ice-tbody');
+  const thead=document.querySelector('.table-wrap thead tr');
+
+  // 헤더 컬럼 업데이트
+  thead.innerHTML='<th>호선</th><th>위치</th><th>팀</th><th>얼음물</th>';
+
   const rows=WORKFORCE.filter(w=>w['날짜']===selectedDate)
     .sort((a,b)=>{
       const tA=(a['담당팀']||'').trim()||getTeamForShip(a['호선'],a['날짜'])||'Z';
@@ -627,27 +632,59 @@ function updateIceTable() {
     });
 
   if(!rows.length){
-    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`;
     return;
   }
 
-  const filtered = rows.filter(r => {
-    const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
+  const filtered=rows.filter(r=>{
+    const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
     return !!team;
   });
 
   if(!filtered.length){
-    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:#64748b;padding:30px">팀 배정된 호선 없음</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#64748b;padding:30px">팀 배정된 호선 없음</td></tr>`;
     return;
   }
 
+  // 팀별 합계
+  const totals={A:0,B:0,C:0};
+  filtered.forEach(r=>{
+    const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
+    if(totals[team]!==undefined) totals[team]+=parseInt(r['작업인원']||0);
+  });
+
+  // 합계 헤더 삽입 (테이블 위)
+  const summaryEl=document.getElementById('ice-summary');
+  summaryEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 0">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">A팀</div>
+        <div style="font-size:20px;font-weight:800;color:var(--accent-a)">${totals.A.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--muted)">개</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">B팀</div>
+        <div style="font-size:20px;font-weight:800;color:var(--accent-b)">${totals.B.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--muted)">개</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">C팀</div>
+        <div style="font-size:20px;font-weight:800;color:var(--accent-c)">${totals.C.toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--muted)">개</div>
+      </div>
+    </div>`;
+
+  // 비고값 조회: MOVEMENT에서 해당 날짜+호선의 비고
   tbody.innerHTML=filtered.map(r=>{
-    const n = parseInt(r['작업인원']||0);
-    const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
-    const badgeClass = `team-${team}`;
-    const iceClass   = `ice-${team}`;
+    const n=parseInt(r['작업인원']||0);
+    const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
+    const badgeClass=`team-${team}`;
+    const iceClass=`ice-${team}`;
+    const mvRow=MOVEMENT.find(m=>String(m['호선']).trim()===String(r['호선']).trim()&&String(m['날짜']).trim()===selectedDate);
+    const remark=(mvRow?.['비고']||'').trim()||'-';
     return `<tr>
       <td class="num">${r['호선']}</td>
+      <td style="font-size:12px;color:var(--muted)">${remark}</td>
       <td><span class="team-badge ${badgeClass}" style="font-size:10px;padding:2px 7px">${team}팀</span></td>
       <td class="${iceClass}">${n.toLocaleString()}</td>
     </tr>`;
