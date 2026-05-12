@@ -207,10 +207,9 @@ async function loadAllData() {
       fetchCSV(URLS.workforce), fetchCSV(URLS.movement),
       fetchCSV(URLS.contacts), fetchCSV(URLS.locations),
     ]);
-    const dates = [...new Set([
-      ...WORKFORCE.map(r=>r['날짜']),
-      ...MOVEMENT.map(r=>r['날짜'])
-    ].filter(Boolean))].sort();
+    const dates = [...new Set(
+      WORKFORCE.map(r=>r['날짜']).filter(Boolean)
+    )].sort();
     allDates = dates;
     if (!selectedDate || !allDates.includes(selectedDate)) {
       const today = new Date().toISOString().slice(0,10);
