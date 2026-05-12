@@ -161,27 +161,57 @@ let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
 let selectedDate='', allDates=[];
 let map, markersLayer, routeLayer;
 
-// ── 핵심 로직: 호선+날짜 → 팀 조회 ──────────────────────────────────
-// 1) Movement에서 해당 날짜+호선의 "이동후위치" 찾기
-// 2) Locations에서 위치명 일치하는 행의 "팀" 반환
-function getTeamForShip(shipNo, date) {
+// ── 이동 판정: 전날 대비 이동후위치가 바뀐 경우만 이동으로 간주 ────────
+// Movement는 날짜/호선별로 정렬되어 있음
+// 같은 호선에서 전날 이동후위치 != 오늘 이동후위치 → 이동한 것
+function getMovesForDate(date) {
+  // 해당 날짜의 모든 Movement 행
+  const todayRows = MOVEMENT.filter(m => String(m['날짜']).trim() === date);
+
+  return todayRows.filter(mv => {
+    const shipStr = String(mv['호선']).trim();
+    const todayDest = (mv['이동후위치'] || '').trim();
+    if (!todayDest) return false;
+
+    // 같은 호선의 행들을 날짜순으로 정렬
+    const shipRows = MOVEMENT
+      .filter(m => String(m['호선']).trim() === shipStr)
+      .sort((a, b) => String(a['날짜']).localeCompare(String(b['날짜'])));
+
+    // 오늘 이전 마지막 행 찾기 (= 전날 위치)
+    const prevRow = [...shipRows]
+      .reverse()
+      .find(m => String(m['날짜']).trim() < date);
+
+    // 전날 기록이 없으면(= 처음 등장) 이동으로 간주
+    if (!prevRow) return true;
+
+    const prevDest = (prevRow['이동후위치'] || '').trim();
+    // 전날과 다르면 이동한 것
+    return todayDest !== prevDest;
+  });
+}
+
+// ── 호선+날짜 → 현재 위치(이동후위치) 조회 ──────────────────────────
+// 해당 날짜 기준으로 가장 최근 Movement 행의 이동후위치 반환
+function getCurrentLocation(shipNo, date) {
   const shipStr = String(shipNo).trim();
-  const dateStr = String(date).trim();
 
-  // Movement 시트에서 날짜+호선이 일치하는 행 찾기
-  const mv = MOVEMENT.find(m =>
-    String(m['날짜']).trim() === dateStr &&
-    String(m['호선']).trim() === shipStr
-  );
-  if (!mv) return null;
+  // 같은 호선의 행 중 해당 날짜 이하인 것들을 날짜순 정렬
+  const candidates = MOVEMENT
+    .filter(m => String(m['호선']).trim() === shipStr && String(m['날짜']).trim() <= date)
+    .sort((a, b) => String(b['날짜']).localeCompare(String(a['날짜'])));
 
-  const destination = (mv['이동후위치'] || '').trim();
+  return candidates.length ? (candidates[0]['이동후위치'] || '').trim() : null;
+}
+
+// ── 호선+날짜 → 팀 조회 ──────────────────────────────────────────────
+// 현재 위치(이동후위치) → Locations 팀
+function getTeamForShip(shipNo, date) {
+  const destination = getCurrentLocation(shipNo, date);
   if (!destination) return null;
 
-  // Locations 시트에서 위치명이 일치하는 행 찾기
-  const loc = LOCATIONS.find(l =>
-    (l['위치'] || '').trim() === destination
-  );
+  const loc = LOCATIONS.find(l => (l['위치'] || '').trim() === destination);
   return loc ? (loc['팀'] || '').trim() || null : null;
 }
 // ─────────────────────────────────────────────────────────────────────
@@ -302,14 +332,23 @@ function updateMap() {
       interactive:false
     }).addTo(markersLayer);
   });
-  MOVEMENT.filter(m=>m['날짜']===selectedDate).forEach(mv=>{
-    const from=locMap[mv['현재위치']], to=locMap[mv['이동후위치']];
+  // 이동 경로: 전날 대비 위치가 바뀐 것만 표시
+  getMovesForDate(selectedDate).forEach(mv=>{
+    const shipStr = String(mv['호선']).trim();
+    const shipRows = MOVEMENT
+      .filter(r => String(r['호선']).trim() === shipStr)
+      .sort((a, b) => String(a['날짜']).localeCompare(String(b['날짜'])));
+    const prevRow = [...shipRows].reverse().find(r => String(r['날짜']).trim() < selectedDate);
+    const fromName = prevRow ? (prevRow['이동후위치']||'').trim() : '';
+    const toName = (mv['이동후위치']||'').trim();
+
+    const from=locMap[fromName], to=locMap[toName];
     if(!from||!to) return;
     const fLat=parseFloat(from['위도']),fLng=parseFloat(from['경도']);
     const tLat=parseFloat(to['위도']),tLng=parseFloat(to['경도']);
     if(!fLat||!tLat) return;
     L.polyline([[fLat,fLng],[tLat,tLng]],{color:'#f59e0b',weight:3,dashArray:'8,6'})
-      .bindPopup(`<b>${mv['호선']}호선</b><br>${mv['현재위치']} → ${mv['이동후위치']}`)
+      .bindPopup(`<b>${mv['호선']}호선</b><br>${fromName} → ${toName}`)
       .addTo(routeLayer);
     L.circleMarker([tLat,tLng],{radius:10,fillColor:'#f59e0b',color:'#fff',weight:2,fillOpacity:0.9}).addTo(routeLayer);
   });
@@ -317,12 +356,23 @@ function updateMap() {
 
 function updateMoveList() {
   const el=document.getElementById('move-list');
-  const moves=MOVEMENT.filter(m=>m['날짜']===selectedDate);
+  // 전날 대비 위치가 바뀐 것만 이동으로 표시
+  const moves=getMovesForDate(selectedDate);
   if(!moves.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">🚢</div>이날 이동 계획이 없습니다</div>`; return; }
   el.innerHTML=moves.map(m=>{
-    const team = (m['담당팀']||'').trim() || getTeamForShip(m['호선'], m['날짜']) || '';
+    const shipStr = String(m['호선']).trim();
+    const team = (m['담당팀']||'').trim() || getTeamForShip(shipStr, selectedDate) || '';
     const badgeClass = team ? `team-${team}` : 'team-unknown';
     const badgeLabel = team ? `${team}팀` : '-';
+
+    // 전날 위치(= 이동 출발지) 계산
+    const shipRows = MOVEMENT
+      .filter(r => String(r['호선']).trim() === shipStr)
+      .sort((a, b) => String(a['날짜']).localeCompare(String(b['날짜'])));
+    const prevRow = [...shipRows].reverse().find(r => String(r['날짜']).trim() < selectedDate);
+    const fromLoc = prevRow ? (prevRow['이동후위치']||'').trim() : '-';
+    const toLoc = (m['이동후위치']||'').trim() || '-';
+
     return `
     <div class="move-card">
       <div class="move-header">
@@ -330,9 +380,9 @@ function updateMoveList() {
         <div class="team-badge ${badgeClass}">${badgeLabel}</div>
       </div>
       <div class="move-route">
-        <span class="loc-from">${m['현재위치']||'-'}</span>
+        <span class="loc-from">${fromLoc}</span>
         <span class="arrow">→</span>
-        <span class="loc-to">${m['이동후위치']||'-'}</span>
+        <span class="loc-to">${toLoc}</span>
       </div>
       <div class="move-reason">${m['비고']||''}</div>
     </div>`;
@@ -370,7 +420,7 @@ function updateIceTable() {
 function updateKPI() {
   const wf=WORKFORCE.filter(w=>w['날짜']===selectedDate);
   const total=wf.reduce((s,r)=>s+parseInt(r['작업인원']||0),0);
-  const moves=MOVEMENT.filter(m=>m['날짜']===selectedDate).length;
+  const moves=getMovesForDate(selectedDate).length;
   document.getElementById('kpi-workers').textContent=total.toLocaleString();
   document.getElementById('kpi-ice').textContent=total.toLocaleString();
   document.getElementById('kpi-ships').textContent=moves;
