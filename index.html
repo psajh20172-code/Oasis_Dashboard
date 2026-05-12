@@ -166,6 +166,35 @@ const URLS = {
 };
 const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
 
+// ── 위치별 그룹 번호 (1단계 위치명 → 2단계 그룹 번호) ──
+const LOC_GROUP = {
+  'No.2 Dock': 1,
+  'No.1 Dock': 1,
+  'No.1 Berth': 2,
+  'N-B-2': 3,
+  'N-B-1': 3,
+  'N-A-2': 4,
+  'N-A-1': 4,
+  'F-B-1': 5,
+  'F-B-2': 5,
+  'F-A-1': 6,
+  'F-A-2': 6,
+  'F/Dock': 6,
+  'D-B-2': 7,
+  'D-B-1': 7,
+  'D-A-2': 8,
+  'D-A-1': 8,
+  '2-B-2': 9,
+  '2-B-1': 9,
+  '2-A-2': 10,
+  '2-A-1': 10,
+  '1-B-2': 11,
+  '1-B-1': 11,
+  '1-A-2': 12,
+  '1-A-1': 12,
+  '지원관': 13,
+};
+
 let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
 let selectedDate='', allDates=[];
 let map, markersLayer, routeLayer, bubbleLayer;
@@ -211,7 +240,7 @@ function getIceByLocation(date) {
   const wf = WORKFORCE.filter(w => String(w['날짜']).trim() === date);
   wf.forEach(r => {
     const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], date) || '';
-    if (!team) return; // 팀 미배정 제외
+    if (!team) return;
     const loc = getCurrentLocation(r['호선'], date);
     if (!loc) return;
     if (!result[loc]) result[loc] = { team, total:0, ships:[] };
@@ -318,7 +347,6 @@ function initMap() {
   routeLayer   = L.layerGroup().addTo(map);
   bubbleLayer  = L.layerGroup().addTo(map);
 
-  // 줌 변경시 버블/마커 재렌더
   map.on('zoomend', () => {
     currentZoom = map.getZoom();
     updateMapBubbles();
@@ -333,14 +361,13 @@ function updateMap() {
   const locMap={};
   LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
 
-  // 위치 점 마커 (팀 미배정 포함 모든 위치)
+  // 위치 점 마커 (모든 위치)
   LOCATIONS.forEach(loc=>{
     const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
     if(!lat||!lng) return;
     const color=TEAM_COLOR[loc['팀']]||'#64748b';
     L.circleMarker([lat,lng],{radius:5,fillColor:color,color:'#fff',weight:1.5,fillOpacity:0.7})
       .addTo(markersLayer);
-    // 위치 라벨 (작은 마커)
     L.marker([lat,lng],{
       icon:L.divIcon({
         className:'',
@@ -375,7 +402,7 @@ function updateMap() {
   updateMapBubbles();
 }
 
-// ── 줌 레벨에 따라 버블(팀 총합) 또는 위치별 상세 마커 표시 ──
+// ── 줌 3단계: 팀버블 / 그룹별 / 위치별 ──
 function updateMapBubbles() {
   if(!map) return;
   bubbleLayer.clearLayers();
@@ -386,19 +413,22 @@ function updateMapBubbles() {
   const iceByLoc = getIceByLocation(selectedDate);
   const zoom = map.getZoom();
 
-  if (zoom < 15) {
-    // ── 줌 아웃: 팀별 버블 (팀 총합을 팀 중심 위치에 표시) ──
-    const teamTotals = { A:{total:0,lats:[],lngs:[]}, B:{total:0,lats:[],lngs:[]}, C:{total:0,lats:[],lngs:[]} };
+  if (zoom < 14) {
+    // ── 1단계 (줌 < 14): 팀별 버블 ──
+    const teamTotals = {
+      A:{total:0,lats:[],lngs:[]},
+      B:{total:0,lats:[],lngs:[]},
+      C:{total:0,lats:[],lngs:[]}
+    };
+
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
       if(!locInfo) return;
       const lat=parseFloat(locInfo['위도']), lng=parseFloat(locInfo['경도']);
-      if(!lat||!lng) return;
-      const t = data.team;
-      if(!teamTotals[t]) return;
-      teamTotals[t].total += data.total;
-      teamTotals[t].lats.push(lat);
-      teamTotals[t].lngs.push(lng);
+      if(!lat||!lng||!teamTotals[data.team]) return;
+      teamTotals[data.team].total += data.total;
+      teamTotals[data.team].lats.push(lat);
+      teamTotals[data.team].lngs.push(lng);
     });
 
     Object.entries(teamTotals).forEach(([team, data]) => {
@@ -406,24 +436,22 @@ function updateMapBubbles() {
       const avgLat = data.lats.reduce((s,v)=>s+v,0)/data.lats.length;
       const avgLng = data.lngs.reduce((s,v)=>s+v,0)/data.lngs.length;
       const color = TEAM_COLOR[team];
-      const r = Math.max(30, Math.min(60, 20 + data.total / 8));
+      const r = Math.max(32, Math.min(65, 18 + data.total / 8));
 
-      // 버블 (반투명 원)
       L.circleMarker([avgLat,avgLng],{
         radius: r,
         fillColor: color,
         color: color,
         weight: 2,
-        fillOpacity: 0.25
+        fillOpacity: 0.22
       }).addTo(bubbleLayer);
 
-      // 수량 텍스트
       L.marker([avgLat,avgLng],{
         icon: L.divIcon({
           className:'',
           html:`<div style="
             color:#fff;font-weight:800;text-align:center;
-            text-shadow:0 2px 6px rgba(0,0,0,0.8);
+            text-shadow:0 2px 6px rgba(0,0,0,0.9);
             transform:translate(-50%,-50%);
             pointer-events:none;
           ">
@@ -436,8 +464,81 @@ function updateMapBubbles() {
       }).addTo(bubbleLayer);
     });
 
+  } else if (zoom < 16) {
+    // ── 2단계 (14 ≤ 줌 < 16): 그룹별 버블 (LOC_GROUP 기준 묶음) ──
+    const groupData = {};
+
+    Object.entries(iceByLoc).forEach(([locName, data]) => {
+      const locInfo = locMap[locName];
+      if(!locInfo) return;
+      const lat=parseFloat(locInfo['위도']), lng=parseFloat(locInfo['경도']);
+      if(!lat||!lng) return;
+      const grp = LOC_GROUP[locName];
+      if(grp === undefined) return;
+      if(!groupData[grp]) groupData[grp] = {total:0, teamCounts:{}, lats:[], lngs:[], locs:[]};
+      groupData[grp].total += data.total;
+      groupData[grp].teamCounts[data.team] = (groupData[grp].teamCounts[data.team]||0) + data.total;
+      groupData[grp].lats.push(lat);
+      groupData[grp].lngs.push(lng);
+      groupData[grp].locs.push({ name: locName, ...data });
+    });
+
+    Object.entries(groupData).forEach(([grp, data]) => {
+      if(!data.total) return;
+      const avgLat = data.lats.reduce((s,v)=>s+v,0)/data.lats.length;
+      const avgLng = data.lngs.reduce((s,v)=>s+v,0)/data.lngs.length;
+
+      // 그룹 내 가장 많은 팀을 대표 색상으로
+      const dominantTeam = Object.entries(data.teamCounts)
+        .sort((a,b)=>b[1]-a[1])[0]?.[0] || 'A';
+      const color = TEAM_COLOR[dominantTeam] || '#64748b';
+      const r = Math.max(22, Math.min(50, 12 + data.total / 8));
+
+      L.circleMarker([avgLat,avgLng],{
+        radius: r,
+        fillColor: color,
+        color: color,
+        weight: 2,
+        fillOpacity: 0.28
+      }).addTo(bubbleLayer);
+
+      // 팝업: 그룹 내 위치별 상세
+      const locsHtml = data.locs
+        .sort((a,b)=>b.total-a.total)
+        .map(l=>`<div class="map-popup-ship-row">
+          <span class="map-popup-ship-num">${l.name}</span>
+          <span class="map-popup-ship-ice" style="color:${TEAM_COLOR[l.team]||color}">${l.total}개</span>
+        </div>`).join('');
+
+      const marker = L.marker([avgLat,avgLng],{
+        icon: L.divIcon({
+          className:'',
+          html:`<div style="
+            color:#fff;font-weight:800;text-align:center;
+            text-shadow:0 2px 6px rgba(0,0,0,0.9);
+            transform:translate(-50%,-50%);
+            cursor:pointer;
+          ">
+            <div style="font-size:20px;line-height:1">${data.total}</div>
+          </div>`,
+          iconAnchor:[0,0]
+        })
+      });
+
+      marker.bindPopup(`
+        <div style="min-width:160px">
+          <div class="map-popup-title">구역 ${grp}</div>
+          <div class="map-popup-total" style="color:${color}">${data.total}</div>
+          <div class="map-popup-unit">개 (얼음물)</div>
+          <div class="map-popup-ships">${locsHtml}</div>
+        </div>
+      `, {maxWidth:230});
+
+      marker.addTo(bubbleLayer);
+    });
+
   } else {
-    // ── 줌 인: 위치별 상세 마커 (얼음물 수량 + 클릭 팝업) ──
+    // ── 3단계 (줌 ≥ 16): 위치별 개별 배지 + 클릭 팝업 ──
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
       if(!locInfo) return;
@@ -445,7 +546,13 @@ function updateMapBubbles() {
       if(!lat||!lng) return;
       const color = TEAM_COLOR[data.team] || '#64748b';
 
-      // 위치별 수량 뱃지
+      const shipsHtml = data.ships
+        .sort((a,b)=>b.ice-a.ice)
+        .map(s=>`<div class="map-popup-ship-row">
+          <span class="map-popup-ship-num">${s.ship}호선</span>
+          <span class="map-popup-ship-ice" style="color:${color}">${s.ice}개</span>
+        </div>`).join('');
+
       const marker = L.marker([lat,lng],{
         icon: L.divIcon({
           className:'',
@@ -460,14 +567,6 @@ function updateMapBubbles() {
           iconAnchor:[0,0]
         })
       });
-
-      // 클릭시 팝업: 위치명, 팀, 총수량, 호선별 상세
-      const shipsHtml = data.ships
-        .sort((a,b)=>b.ice-a.ice)
-        .map(s=>`<div class="map-popup-ship-row">
-          <span class="map-popup-ship-num">${s.ship}호선</span>
-          <span class="map-popup-ship-ice" style="color:${color}">${s.ice}개</span>
-        </div>`).join('');
 
       marker.bindPopup(`
         <div style="min-width:150px">
@@ -525,7 +624,6 @@ function updateIceTable() {
     return;
   }
 
-  // 팀 배정된 호선만 표시
   const filtered = rows.filter(r => {
     const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
     return !!team;
@@ -552,7 +650,6 @@ function updateIceTable() {
 function updateKPI() {
   const wf=WORKFORCE.filter(w=>w['날짜']===selectedDate);
   const totalWorkers=wf.reduce((s,r)=>s+parseInt(r['작업인원']||0),0);
-  // 팀 배정된 호선만 얼음물 합산
   const totalIce=wf.reduce((s,r)=>{
     const team=(r['담당팀']||'').trim()||getTeamForShip(r['호선'],r['날짜'])||'';
     return team ? s+parseInt(r['작업인원']||0) : s;
