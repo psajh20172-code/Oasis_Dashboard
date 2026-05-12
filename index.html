@@ -617,7 +617,14 @@ function updateMoveList() {
 function updateIceTable() {
   const tbody=document.getElementById('ice-tbody');
   const rows=WORKFORCE.filter(w=>w['날짜']===selectedDate)
-    .sort((a,b)=>parseInt(b['작업인원']||0)-parseInt(a['작업인원']||0));
+    .sort((a,b)=>{
+      const tA=(a['담당팀']||'').trim()||getTeamForShip(a['호선'],a['날짜'])||'Z';
+      const tB=(b['담당팀']||'').trim()||getTeamForShip(b['호선'],b['날짜'])||'Z';
+      if(tA!==tB) return tA.localeCompare(tB);
+      const sA=parseInt(a['호선']||0), sB=parseInt(b['호선']||0);
+      if(sA!==sB) return sA-sB;
+      return parseInt(b['작업인원']||0)-parseInt(a['작업인원']||0);
+    });
 
   if(!rows.length){
     tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`;
