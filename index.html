@@ -7,85 +7,79 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  :root {
-    --bg: #0a0f1e; --card: #111827; --card2: #1a2235; --border: #1e2d45;
-    --accent-a: #00c2ff; --accent-b: #00e5a0; --accent-c: #ff6b6b;
-    --text: #e2e8f0; --muted: #64748b; --gold: #f59e0b;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; min-height:100vh; padding-bottom:80px; }
-
-  #loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; }
-  .loading-icon { font-size:48px; animation:spin 1.5s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .loading-text { color:var(--muted); font-size:14px; }
-
-  .header { background:linear-gradient(135deg,#0d1b2e,#112240); border-bottom:1px solid var(--border); padding:14px 16px 10px; position:sticky; top:0; z-index:1000; }
-  .header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .logo { display:flex; align-items:center; gap:8px; }
-  .logo-icon { width:32px; height:32px; background:linear-gradient(135deg,var(--accent-a),var(--accent-b)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
-  .logo-text { font-size:16px; font-weight:700; }
-  .logo-sub { font-size:10px; color:var(--muted); }
-  .refresh-btn { background:var(--card2); border:1px solid var(--border); color:var(--muted); padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-family:inherit; }
-
-  .date-nav { display:flex; align-items:center; gap:8px; }
-  .date-nav select { flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:8px; font-size:13px; font-family:inherit; appearance:none; }
-  .btn-nav { width:34px; height:34px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-
-  .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 16px; }
-  .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 10px; text-align:center; }
-  .kpi-label { font-size:10px; color:var(--muted); margin-bottom:4px; }
-  .kpi-value { font-size:22px; font-weight:800; line-height:1; }
-  .kpi-unit { font-size:10px; color:var(--muted); margin-top:2px; }
-  .kpi-card.blue .kpi-value { color:var(--accent-a); }
-  .kpi-card.green .kpi-value { color:var(--accent-b); }
-  .kpi-card.red .kpi-value { color:var(--accent-c); }
-
-  .tab-bar { display:flex; gap:6px; padding:0 16px 12px; }
-  .tab-btn { flex:1; padding:8px 4px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--muted); font-size:12px; cursor:pointer; font-family:inherit; }
-  .tab-btn.active { background:var(--accent-a); border-color:var(--accent-a); color:#000; font-weight:700; }
-
-  .section { display:none; padding:0 16px; }
-  .section.active { display:block; }
-
-  #map { width:100%; height:340px; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
-  .map-legend { display:flex; gap:12px; padding:8px 0; flex-wrap:wrap; }
-  .legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
-  .legend-dot { width:10px; height:10px; border-radius:50%; }
-
-  .move-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px; }
-  .move-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .ship-num { font-size:18px; font-weight:800; color:var(--accent-a); }
-  .team-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
-  .team-A { background:rgba(0,194,255,0.15); color:var(--accent-a); border:1px solid rgba(0,194,255,0.3); }
-  .team-B { background:rgba(0,229,160,0.15); color:var(--accent-b); border:1px solid rgba(0,229,160,0.3); }
-  .team-C { background:rgba(255,107,107,0.15); color:var(--accent-c); border:1px solid rgba(255,107,107,0.3); }
-  .move-route { display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:6px; }
-  .loc-from { color:var(--muted); }
-  .arrow { color:var(--gold); font-size:16px; }
-  .loc-to { color:var(--text); font-weight:600; }
-  .move-reason { font-size:11px; color:var(--muted); }
-
-  .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  .table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
-  .table-wrap thead { background:var(--card2); }
-  .table-wrap th { padding:10px 12px; text-align:left; font-size:11px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); }
-  .table-wrap td { padding:10px 12px; border-bottom:1px solid rgba(30,45,69,0.5); }
-  .table-wrap tr:last-child td { border-bottom:none; }
-  .num { font-weight:700; }
-  .ice { color:var(--accent-b); font-weight:700; }
-
-  .contact-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:8px; }
-  .contact-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .team-title { font-size:15px; font-weight:700; }
-  .contact-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--border); }
-  .contact-role { font-size:11px; color:var(--muted); }
-  .contact-name { font-size:14px; font-weight:600; margin-top:2px; }
-  .call-btn { display:flex; align-items:center; gap:5px; background:rgba(0,194,255,0.1); border:1px solid rgba(0,194,255,0.3); color:var(--accent-a); padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; }
-
-  .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
-  .empty-icon { font-size:32px; margin-bottom:8px; }
-  .last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
+:root {
+  --bg: #0a0f1e; --card: #111827; --card2: #1a2235; --border: #1e2d45;
+  --accent-a: #00c2ff; --accent-b: #00e5a0; --accent-c: #ff6b6b;
+  --text: #e2e8f0; --muted: #64748b; --gold: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif; min-height:100vh; padding-bottom:80px; }
+#loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; }
+.loading-icon { font-size:48px; animation:spin 1.5s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text { color:var(--muted); font-size:14px; }
+.header { background:linear-gradient(135deg,#0d1b2e,#112240); border-bottom:1px solid var(--border); padding:14px 16px 10px; position:sticky; top:0; z-index:1000; }
+.header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.logo { display:flex; align-items:center; gap:8px; }
+.logo-icon { width:32px; height:32px; background:linear-gradient(135deg,var(--accent-a),var(--accent-b)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.logo-text { font-size:16px; font-weight:700; }
+.logo-sub { font-size:10px; color:var(--muted); }
+.refresh-btn { background:var(--card2); border:1px solid var(--border); color:var(--muted); padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-family:inherit; }
+.date-nav { display:flex; align-items:center; gap:8px; }
+.date-nav select { flex:1; background:var(--card2); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:8px; font-size:13px; font-family:inherit; appearance:none; }
+.btn-nav { width:34px; height:34px; background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 16px; }
+.kpi-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 10px; text-align:center; }
+.kpi-label { font-size:10px; color:var(--muted); margin-bottom:4px; }
+.kpi-value { font-size:22px; font-weight:800; line-height:1; }
+.kpi-unit { font-size:10px; color:var(--muted); margin-top:2px; }
+.kpi-card.blue .kpi-value { color:var(--accent-a); }
+.kpi-card.green .kpi-value { color:var(--accent-b); }
+.kpi-card.red .kpi-value { color:var(--accent-c); }
+.tab-bar { display:flex; gap:6px; padding:0 16px 12px; }
+.tab-btn { flex:1; padding:8px 4px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--muted); font-size:12px; cursor:pointer; font-family:inherit; }
+.tab-btn.active { background:var(--accent-a); border-color:var(--accent-a); color:#000; font-weight:700; }
+.section { display:none; padding:0 16px; }
+.section.active { display:block; }
+#map { width:100%; height:340px; border-radius:12px; border:1px solid var(--border); overflow:hidden; }
+.map-legend { display:flex; gap:12px; padding:8px 0; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
+.legend-dot { width:10px; height:10px; border-radius:50%; }
+.move-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:8px; }
+.move-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.ship-num { font-size:18px; font-weight:800; color:var(--accent-a); }
+.team-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.team-A { background:rgba(0,194,255,0.15); color:var(--accent-a); border:1px solid rgba(0,194,255,0.3); }
+.team-B { background:rgba(0,229,160,0.15); color:var(--accent-b); border:1px solid rgba(0,229,160,0.3); }
+.team-C { background:rgba(255,107,107,0.15); color:var(--accent-c); border:1px solid rgba(255,107,107,0.3); }
+.team-unknown { background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid rgba(100,116,139,0.3); }
+.move-route { display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:6px; }
+.loc-from { color:var(--muted); }
+.arrow { color:var(--gold); font-size:16px; }
+.loc-to { color:var(--text); font-weight:600; }
+.move-reason { font-size:11px; color:var(--muted); }
+.table-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+.table-wrap thead { background:var(--card2); }
+.table-wrap th { padding:10px 12px; text-align:left; font-size:11px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); }
+.table-wrap td { padding:10px 12px; border-bottom:1px solid rgba(30,45,69,0.5); vertical-align:middle; }
+.table-wrap tr:last-child td { border-bottom:none; }
+.num { font-weight:700; }
+/* 팀별 얼음물 색상 */
+.ice-A { color:var(--accent-a); font-weight:700; }
+.ice-B { color:var(--accent-b); font-weight:700; }
+.ice-C { color:var(--accent-c); font-weight:700; }
+.ice-unknown { color:var(--muted); font-weight:700; }
+.contact-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:8px; }
+.contact-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.team-title { font-size:15px; font-weight:700; }
+.contact-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--border); }
+.contact-role { font-size:11px; color:var(--muted); }
+.contact-name { font-size:14px; font-weight:600; margin-top:2px; }
+.call-btn { display:flex; align-items:center; gap:5px; background:rgba(0,194,255,0.1); border:1px solid rgba(0,194,255,0.3); color:var(--accent-a); padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; }
+.empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
+.empty-icon { font-size:32px; margin-bottom:8px; }
+.last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
 </style>
 </head>
 <body>
@@ -142,7 +136,8 @@
   <div class="section" id="sec-ice">
     <div class="table-wrap">
       <table>
-        <thead><tr><th>호선</th><th>팀</th><th>작업인원</th><th>얼음물</th></tr></thead>
+        <!-- 작업인원 컬럼 삭제, 팀+얼음물만 표시 -->
+        <thead><tr><th>호선</th><th>팀</th><th>얼음물</th></tr></thead>
         <tbody id="ice-tbody"></tbody>
       </table>
     </div>
@@ -165,6 +160,31 @@ const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
 let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
 let selectedDate='', allDates=[];
 let map, markersLayer, routeLayer;
+
+// ── 핵심 로직: 호선+날짜 → 팀 조회 ──────────────────────────────────
+// 1) Movement에서 해당 날짜+호선의 "이동후위치" 찾기
+// 2) Locations에서 위치명 일치하는 행의 "팀" 반환
+function getTeamForShip(shipNo, date) {
+  const shipStr = String(shipNo).trim();
+  const dateStr = String(date).trim();
+
+  // Movement 시트에서 날짜+호선이 일치하는 행 찾기
+  const mv = MOVEMENT.find(m =>
+    String(m['날짜']).trim() === dateStr &&
+    String(m['호선']).trim() === shipStr
+  );
+  if (!mv) return null;
+
+  const destination = (mv['이동후위치'] || '').trim();
+  if (!destination) return null;
+
+  // Locations 시트에서 위치명이 일치하는 행 찾기
+  const loc = LOCATIONS.find(l =>
+    (l['위치'] || '').trim() === destination
+  );
+  return loc ? (loc['팀'] || '').trim() || null : null;
+}
+// ─────────────────────────────────────────────────────────────────────
 
 // CSV 파싱
 function parseCSV(text) {
@@ -205,7 +225,7 @@ async function loadAllData() {
   try {
     [WORKFORCE, MOVEMENT, CONTACTS, LOCATIONS] = await Promise.all([
       fetchCSV(URLS.workforce), fetchCSV(URLS.movement),
-      fetchCSV(URLS.contacts), fetchCSV(URLS.locations),
+      fetchCSV(URLS.contacts),  fetchCSV(URLS.locations),
     ]);
     const dates = [...new Set(
       WORKFORCE.map(r=>r['날짜']).filter(Boolean)
@@ -270,7 +290,6 @@ function updateMap() {
   routeLayer.clearLayers();
   const locMap={};
   LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
-
   LOCATIONS.forEach(loc=>{
     const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
     if(!lat||!lng) return;
@@ -283,7 +302,6 @@ function updateMap() {
       interactive:false
     }).addTo(markersLayer);
   });
-
   MOVEMENT.filter(m=>m['날짜']===selectedDate).forEach(mv=>{
     const from=locMap[mv['현재위치']], to=locMap[mv['이동후위치']];
     if(!from||!to) return;
@@ -301,11 +319,15 @@ function updateMoveList() {
   const el=document.getElementById('move-list');
   const moves=MOVEMENT.filter(m=>m['날짜']===selectedDate);
   if(!moves.length){ el.innerHTML=`<div class="empty-state"><div class="empty-icon">🚢</div>이날 이동 계획이 없습니다</div>`; return; }
-  el.innerHTML=moves.map(m=>`
+  el.innerHTML=moves.map(m=>{
+    const team = (m['담당팀']||'').trim() || getTeamForShip(m['호선'], m['날짜']) || '';
+    const badgeClass = team ? `team-${team}` : 'team-unknown';
+    const badgeLabel = team ? `${team}팀` : '-';
+    return `
     <div class="move-card">
       <div class="move-header">
         <div class="ship-num">${m['호선']}호선</div>
-        <div class="team-badge team-${m['담당팀']||'A'}">${m['담당팀']||'-'}팀</div>
+        <div class="team-badge ${badgeClass}">${badgeLabel}</div>
       </div>
       <div class="move-route">
         <span class="loc-from">${m['현재위치']||'-'}</span>
@@ -313,21 +335,34 @@ function updateMoveList() {
         <span class="loc-to">${m['이동후위치']||'-'}</span>
       </div>
       <div class="move-reason">${m['비고']||''}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function updateIceTable() {
   const tbody=document.getElementById('ice-tbody');
   const rows=WORKFORCE.filter(w=>w['날짜']===selectedDate)
     .sort((a,b)=>parseInt(b['작업인원']||0)-parseInt(a['작업인원']||0));
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`; return; }
+
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="3" style="text-align:center;color:#64748b;padding:30px">데이터 없음</td></tr>`;
+    return;
+  }
+
   tbody.innerHTML=rows.map(r=>{
-    const n=parseInt(r['작업인원']||0);
+    const n = parseInt(r['작업인원']||0);
+
+    // 팀 조회: Workforce 자체 컬럼 우선 → Movement+Locations 체인
+    const team = (r['담당팀']||'').trim() || getTeamForShip(r['호선'], r['날짜']) || '';
+
+    const badgeClass   = team ? `team-${team}`   : 'team-unknown';
+    const badgeLabel   = team ? `${team}팀`       : '-';
+    const iceClass     = team ? `ice-${team}`     : 'ice-unknown';
+
     return `<tr>
       <td class="num">${r['호선']}</td>
-      <td><span class="team-badge team-${r['담당팀']||'A'}" style="font-size:10px;padding:2px 7px">${r['담당팀']||'-'}</span></td>
-      <td class="num">${n.toLocaleString()}</td>
-      <td class="ice">${n.toLocaleString()}</td>
+      <td><span class="team-badge ${badgeClass}" style="font-size:10px;padding:2px 7px">${badgeLabel}</span></td>
+      <td class="${iceClass}">${n.toLocaleString()}</td>
     </tr>`;
   }).join('');
 }
@@ -353,10 +388,10 @@ function updateTeam() {
         <div class="team-badge team-${team}">${team}팀</div>
       </div>
       ${members.map(m=>`
-        <div class="contact-row">
-          <div><div class="contact-role">${m['역할']||''}</div><div class="contact-name">${m['이름']||''}</div></div>
-          <a class="call-btn" href="tel:${m['연락처']||''}">📞 ${m['연락처']||'-'}</a>
-        </div>`).join('')}
+      <div class="contact-row">
+        <div><div class="contact-role">${m['역할']||''}</div><div class="contact-name">${m['이름']||''}</div></div>
+        <a class="call-btn" href="tel:${m['연락처']||''}">📞 ${m['연락처']||'-'}</a>
+      </div>`).join('')}
     </div>`;
   }).join('');
 }
