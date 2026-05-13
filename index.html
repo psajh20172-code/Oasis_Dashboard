@@ -341,6 +341,32 @@ let drawMarkers = [];
 let drawPolyline = null;
 let savedPolygons = [];
 let lastDrawnPoints = null;
+const DEFAULT_POLYGONS = [
+  {
+    "name": "2돌핀",
+    "points": [[34.74080140349055,126.36352300643922],[34.738068306221436,126.36111974716188],[34.73743350940232,126.36217117309572],[34.74041348551257,126.36446714401247],[34.74083666867096,126.3635015487671]]
+  },
+  {
+    "name": "1돌핀",
+    "points": [[34.7366223730365,126.3736939430237],[34.73320140598105,126.37107610702516],[34.73277818371835,126.37199878692628],[34.736181534715506,126.3745951652527],[34.73664000652042,126.37371540069581]]
+  },
+  {
+    "name": "F/D",
+    "points": [[34.73387150346449,126.38032436370851],[34.73209044291895,126.37886524200441],[34.73142033099421,126.3801956176758],[34.73339538212712,126.38150453567506],[34.73387150346449,126.38036727905275]]
+  },
+  {
+    "name": "원버스",
+    "points": [[34.73404784400443,126.3804316520691],[34.737592209064296,126.38289928436281],[34.737027942214695,126.38414382934572],[34.73362462607642,126.38180494308473],[34.734118380115035,126.3804316520691]]
+  },
+  {
+    "name": "2도크",
+    "points": [[34.73962001124835,126.36723518371583],[34.744204424039296,126.37028217315675],[34.74353441035072,126.37178421020509],[34.738985226350444,126.36871576309204],[34.73965527693302,126.36721372604372]]
+  },
+  {
+    "name": "1도크",
+    "points": [[34.74300544833702,126.37193441390993],[34.74252937962887,126.37332916259767],[34.738491501391486,126.37068986892702],[34.73903812527822,126.3694453239441],[34.74298781621155,126.37193441390993]]
+  }
+];
 
 // ── Open-Meteo 날씨 fetch ──
 async function fetchWeather() {
@@ -502,7 +528,7 @@ async function loadAllData() {
     document.getElementById('app').style.display='block';
   if (!map) {
     initMap();
-    loadPolygonsFromStorage();
+    loadDefaultPolygons();
   }
   setTimeout(()=>map&&map.invalidateSize(),200);
   } catch(e) {
@@ -858,7 +884,6 @@ function savePolygon() {
 
   savedPolygons.push({ name, points: pts, layer });
   drawPoints = [];
-  savePolygonsToStorage();
 
   document.getElementById('finish-draw-btn').style.display='none';
   document.getElementById('cancel-draw-btn').style.display='none';
@@ -897,7 +922,6 @@ function deletePolygon(idx) {
   if (!confirm(`"${savedPolygons[idx].name}" 삭제할까요?`)) return;
   map.removeLayer(savedPolygons[idx].layer);
   savedPolygons.splice(idx, 1);
-  savePolygonsToStorage();
   renderPolygonList();
 }
 
@@ -922,29 +946,28 @@ function savePolygonsToStorage() {
   } catch(e) {}
 }
 
-function loadPolygonsFromStorage() {
-  try {
-    const raw = localStorage.getItem('oasis_polygons');
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    data.forEach(p => {
-      const layer = L.polygon(p.points, {
-        color:'rgba(150,170,200,0.8)',
-        fillColor:'rgba(150,170,200,0.25)',
-        weight:1.5, fillOpacity:0.25
-      }).addTo(polygonLayer);
-      const center = layer.getBounds().getCenter();
-      L.marker(center, {
-        icon: L.divIcon({
-          className:'',
-          html:`<div style="font-size:10px;color:#c8d8f0;background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:4px;white-space:nowrap;transform:translate(-50%,-50%)">${p.name}</div>`,
-          iconAnchor:[0,0]
-        }),
-        interactive:false
-      }).addTo(polygonLayer);
-      savedPolygons.push({name:p.name, points:p.points, layer});
-    });
-  } catch(e) {}
+function loadDefaultPolygons() {
+  DEFAULT_POLYGONS.forEach(p => {
+    const layer = L.polygon(p.points, {
+      color:'rgba(200,200,200,0.8)',
+      fillColor:'rgba(200,200,200,0.22)',
+      weight:1.5,
+      fillOpacity:0.22
+    }).addTo(polygonLayer);
+
+    const center = layer.getBounds().getCenter();
+
+    L.marker(center, {
+      icon: L.divIcon({
+        className:'',
+        html:`<div style="font-size:10px;color:#e5e7eb;background:rgba(0,0,0,0.45);padding:2px 6px;border-radius:4px;white-space:nowrap;transform:translate(-50%,-50%)">${p.name}</div>`,
+        iconAnchor:[0,0]
+      }),
+      interactive:false
+    }).addTo(polygonLayer);
+
+    savedPolygons.push({ name:p.name, points:p.points, layer });
+  });
 }
 
 // ── 나머지 UI ──
