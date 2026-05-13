@@ -79,7 +79,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
 .empty-icon { font-size:32px; margin-bottom:8px; }
 .last-updated { font-size:10px; color:var(--muted); text-align:center; padding:8px; }
-/* 지도 팝업 */
 .leaflet-popup-content-wrapper { background:#1a2235; border:1px solid #1e2d45; color:#e2e8f0; border-radius:10px; }
 .leaflet-popup-tip { background:#1a2235; }
 .map-popup-title { font-size:14px; font-weight:700; margin-bottom:6px; }
@@ -91,7 +90,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 .map-popup-ship-num { color:#94a3b8; }
 .map-popup-ship-ice { font-weight:700; }
 
-/* ── 날씨 카드 ── */
+/* 날씨 카드 */
 .weather-strip {
   display:flex; gap:6px; overflow-x:auto; padding:10px 0 4px;
   scrollbar-width:none;
@@ -124,8 +123,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
   border:1px solid rgba(255,107,107,0.4); border-radius:6px;
   padding:2px 8px; font-size:11px; font-weight:700; margin-left:6px;
 }
+.weather-loading {
+  text-align:center; padding:16px; color:var(--muted); font-size:12px;
+}
 
-/* ── 관리 모달 ── */
+/* 관리 모달 */
 .admin-overlay {
   display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
   z-index:2000; align-items:flex-end; justify-content:center;
@@ -162,8 +164,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
 }
 .polygon-item-btn:hover { border-color:var(--accent-a); color:var(--accent-a); }
 .polygon-item-btn.del:hover { border-color:#ff6b6b; color:#ff6b6b; }
-
-/* ── 관리 버튼 (고정) ── */
 .admin-fab {
   position:fixed; bottom:16px; right:16px; z-index:1500;
   width:52px; height:52px; border-radius:50%;
@@ -228,10 +228,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
     <!-- 날씨 섹션 -->
     <div style="margin-top:12px">
       <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-        🌤️ 목포 날씨 (5/11 ~ 5/22)
+        🌤️ 목포 날씨 (14일 예보)
         <span style="font-size:10px;color:#64748b;font-weight:400">· 비 예보일 미시행 가능</span>
       </div>
-      <div class="weather-strip" id="weather-strip"></div>
+      <div class="weather-strip" id="weather-strip">
+        <div class="weather-loading">날씨 불러오는 중...</div>
+      </div>
       <div class="weather-detail" id="weather-detail"></div>
     </div>
   </div>
@@ -266,7 +268,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
       <button class="admin-close" onclick="closeAdmin()">×</button>
     </div>
 
-    <!-- 비번 화면 -->
     <div id="admin-lock">
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">관리자 비밀번호를 입력하세요</div>
       <input class="admin-input" type="password" id="admin-pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter') checkAdminPw()">
@@ -274,7 +275,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
       <div id="admin-pw-err" style="font-size:12px;color:#ff6b6b;margin-top:6px;display:none">비밀번호가 올바르지 않습니다</div>
     </div>
 
-    <!-- 관리 패널 -->
     <div id="admin-panel" style="display:none">
       <div class="admin-section-title">🔷 야드 구역 폴리곤</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">
@@ -310,7 +310,10 @@ const URLS = {
 const TEAM_COLOR = { A:'#00c2ff', B:'#00e5a0', C:'#ff6b6b' };
 const ADMIN_PW = '0115';
 
-// ── 위치별 그룹 번호 ──
+// 목포 좌표
+const MOKPO_LAT = 34.8118;
+const MOKPO_LNG = 126.3922;
+
 const LOC_GROUP = {
   'No.2 Dock':1,'No.1 Dock':1,'No.1 Berth':2,
   'N-B-2':3,'N-B-1':3,'N-A-2':4,'N-A-1':4,
@@ -320,35 +323,67 @@ const LOC_GROUP = {
   '1-B-2':11,'1-B-1':11,'1-A-2':12,'1-A-1':12,'지원관':13,
 };
 
-// ── 목포 날씨 데이터 (5/11~5/22) ──
-// ※ 실제 날씨 데이터로 교체 가능. rain:true 이면 (미시행) 표시
-const WEATHER_DATA = {
-  '2026-05-11': { icon:'⛅', desc:'구름 많음', high:23, low:15, rain:false },
-  '2026-05-12': { icon:'🌤️', desc:'맑음',     high:25, low:16, rain:false },
-  '2026-05-13': { icon:'🌤️', desc:'맑음',     high:26, low:17, rain:false },
-  '2026-05-14': { icon:'⛅', desc:'구름 많음', high:24, low:16, rain:false },
-  '2026-05-15': { icon:'🌧️', desc:'비',        high:20, low:15, rain:true  },
-  '2026-05-16': { icon:'🌦️', desc:'흐리고 비', high:19, low:14, rain:true  },
-  '2026-05-17': { icon:'⛅', desc:'구름 많음', high:22, low:15, rain:false },
-  '2026-05-18': { icon:'🌤️', desc:'맑음',     high:24, low:16, rain:false },
-  '2026-05-19': { icon:'🌤️', desc:'맑음',     high:25, low:17, rain:false },
-  '2026-05-20': { icon:'⛅', desc:'구름 많음', high:23, low:16, rain:false },
-  '2026-05-21': { icon:'🌧️', desc:'비',        high:21, low:15, rain:true  },
-  '2026-05-22': { icon:'🌤️', desc:'맑음',     high:24, low:16, rain:false },
-};
-
 let WORKFORCE=[], MOVEMENT=[], CONTACTS=[], LOCATIONS=[];
+let WEATHER_DATA = {};  // Open-Meteo에서 채워짐
 let selectedDate='', allDates=[];
 let map, markersLayer, routeLayer, bubbleLayer, polygonLayer;
 let currentZoom = 16;
+let adminUnlocked = false; // ← 폴리곤 버그 수정
 
-// ── 폴리곤 관리 상태 ──
+// 폴리곤 상태
 let isDrawing = false;
 let drawPoints = [];
 let drawMarkers = [];
 let drawPolyline = null;
-let savedPolygons = [];  // [{name, points, layer}]
-let lastDrawnPoints = null; // 복제용
+let savedPolygons = [];
+let lastDrawnPoints = null;
+
+// ── Open-Meteo 날씨 fetch ──
+async function fetchWeather() {
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast' +
+      '?latitude=' + MOKPO_LAT +
+      '&longitude=' + MOKPO_LNG +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode' +
+      '&timezone=Asia/Seoul' +
+      '&forecast_days=14';
+
+    const res = await fetch(url);
+    const json = await res.json();
+    const result = {};
+
+    json.daily.time.forEach((date, i) => {
+      const code = json.daily.weathercode[i];
+      const precip = json.daily.precipitation_sum[i] || 0;
+      const rain = precip >= 1;
+
+      // WMO 날씨 코드 → 아이콘/설명 변환
+      let icon = '🌤️', desc = '맑음';
+      if (code === 0)                      { icon = '☀️';  desc = '맑음'; }
+      else if (code <= 2)                  { icon = '🌤️'; desc = '구름 조금'; }
+      else if (code === 3)                 { icon = '☁️';  desc = '흐림'; }
+      else if (code <= 49)                 { icon = '🌫️'; desc = '안개'; }
+      else if (code <= 59)                 { icon = '🌦️'; desc = '이슬비'; }
+      else if (code <= 69)                 { icon = '🌧️'; desc = '비'; }
+      else if (code <= 79)                 { icon = '🌨️'; desc = '눈'; }
+      else if (code <= 82)                 { icon = '🌧️'; desc = '소나기'; }
+      else if (code <= 99)                 { icon = '⛈️';  desc = '천둥번개'; }
+
+      result[date] = {
+        icon,
+        desc,
+        high: Math.round(json.daily.temperature_2m_max[i]),
+        low:  Math.round(json.daily.temperature_2m_min[i]),
+        rain
+      };
+    });
+
+    return result;
+  } catch(e) {
+    console.warn('날씨 로드 실패:', e);
+    return {};
+  }
+}
 
 // ── 이동 판정 ──
 function getMovesForDate(date) {
@@ -430,14 +465,26 @@ async function fetchCSV(url) {
   return parseCSV(text);
 }
 
+// ── 전체 데이터 로드 ──
 async function loadAllData() {
   document.getElementById('loading-screen').style.display='flex';
   document.getElementById('app').style.display='none';
   try {
-    [WORKFORCE, MOVEMENT, CONTACTS, LOCATIONS] = await Promise.all([
-      fetchCSV(URLS.workforce), fetchCSV(URLS.movement),
-      fetchCSV(URLS.contacts),  fetchCSV(URLS.locations),
+    // 구글시트 + 날씨 동시에 fetch
+    const [wf, mv, ct, lc, wd] = await Promise.all([
+      fetchCSV(URLS.workforce),
+      fetchCSV(URLS.movement),
+      fetchCSV(URLS.contacts),
+      fetchCSV(URLS.locations),
+      fetchWeather(),           // ← Open-Meteo
     ]);
+
+    WORKFORCE = wf;
+    MOVEMENT  = mv;
+    CONTACTS  = ct;
+    LOCATIONS = lc;
+    WEATHER_DATA = wd;          // ← 전역 변수에 저장
+
     const dates = [...new Set(WORKFORCE.map(r=>r['날짜']).filter(Boolean))].sort();
     allDates = dates;
     if (!selectedDate || !allDates.includes(selectedDate)) {
@@ -502,7 +549,6 @@ function initMap() {
     updateMapBubbles();
   });
 
-  // 폴리곤 그리기 클릭
   map.on('click', (e) => {
     if (!isDrawing) return;
     addDrawPoint(e.latlng.lat, e.latlng.lng);
@@ -517,7 +563,6 @@ function updateMap() {
   const locMap={};
   LOCATIONS.forEach(l=>{ if(l['위치']) locMap[l['위치']]=l; });
 
-  // 위치 점 마커 (줌 ≥ 17에서만 라벨 표시)
   LOCATIONS.forEach(loc=>{
     const lat=parseFloat(loc['위도']), lng=parseFloat(loc['경도']);
     if(!lat||!lng) return;
@@ -536,7 +581,6 @@ function updateMap() {
     }
   });
 
-  // 이동 경로
   getMovesForDate(selectedDate).forEach(mv=>{
     const shipStr = String(mv['호선']).trim();
     const shipRows = MOVEMENT
@@ -560,7 +604,6 @@ function updateMap() {
   updateMapBubbles();
 }
 
-// ── 줌 3단계 버블 ──
 function updateMapBubbles() {
   if(!map) return;
   bubbleLayer.clearLayers();
@@ -570,7 +613,6 @@ function updateMapBubbles() {
   const zoom = map.getZoom();
 
   if (zoom < 16) {
-    // 1단계: 팀별 버블
     const teamTotals = {A:{total:0,lats:[],lngs:[]},B:{total:0,lats:[],lngs:[]},C:{total:0,lats:[],lngs:[]}};
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
@@ -590,9 +632,7 @@ function updateMapBubbles() {
       L.circleMarker([avgLat,avgLng],{radius:r,fillColor:color,color:color,weight:2,fillOpacity:0.22}).addTo(bubbleLayer);
       L.marker([avgLat,avgLng],{icon:L.divIcon({className:'',html:`<div style="color:#fff;font-weight:800;text-align:center;text-shadow:0 2px 6px rgba(0,0,0,0.9);transform:translate(-50%,-50%);pointer-events:none;"><div style="font-size:28px;line-height:1">${data.total}</div><div style="font-size:11px;opacity:0.85">${team}팀</div></div>`,iconAnchor:[0,0]}),interactive:false}).addTo(bubbleLayer);
     });
-
   } else if (zoom < 18) {
-    // 2단계: 그룹별 버블
     const groupData = {};
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
@@ -621,9 +661,7 @@ function updateMapBubbles() {
       marker.bindPopup(`<div style="min-width:160px"><div class="map-popup-title">구역 ${grp}</div><div class="map-popup-total" style="color:${color}">${data.total}</div><div class="map-popup-unit">개 (얼음물)</div><div class="map-popup-ships">${locsHtml}</div></div>`,{maxWidth:230});
       marker.addTo(bubbleLayer);
     });
-
   } else {
-    // 3단계: 위치별 개별 배지
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
       if(!locInfo) return;
@@ -641,8 +679,12 @@ function updateMapBubbles() {
 // ── 날씨 렌더 ──
 function renderWeather() {
   const strip = document.getElementById('weather-strip');
-  const detail = document.getElementById('weather-detail');
   const dates = Object.keys(WEATHER_DATA).sort();
+
+  if (!dates.length) {
+    strip.innerHTML = '<div class="weather-loading">날씨 정보를 불러올 수 없습니다</div>';
+    return;
+  }
 
   strip.innerHTML = dates.map(d => {
     const w = WEATHER_DATA[d];
@@ -697,35 +739,36 @@ function renderWeatherDetail(d) {
   `;
 }
 
-// ── 관리 모달 ──
-let adminUnlocked = false; // 상태 변수 추가
-
+// ── 관리 모달 (폴리곤 버그 수정됨) ──
 function openAdmin() {
   document.getElementById('admin-overlay').classList.add('open');
   if (adminUnlocked) {
-    document.getElementById('admin-lock').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'block';
-  } else {
-    document.getElementById('admin-lock').style.display = 'block';
-    document.getElementById('admin-panel').style.display = 'none';
-  }
-  document.getElementById('admin-pw-err').style.display = 'none';
-}
-
-function checkAdminPw() {
-  if (document.getElementById('admin-pw').value === ADMIN_PW) {
-    adminUnlocked = true; // ← 추가
-    document.getElementById('admin-lock').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'block';
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-panel').style.display='block';
     renderPolygonList();
   } else {
-    document.getElementById('admin-pw-err').style.display = 'block';
+    document.getElementById('admin-lock').style.display='block';
+    document.getElementById('admin-panel').style.display='none';
+    document.getElementById('admin-pw').value='';
   }
+  document.getElementById('admin-pw-err').style.display='none';
 }
 
 function closeAdmin() {
   document.getElementById('admin-overlay').classList.remove('open');
   if (isDrawing) cancelDrawPolygon();
+}
+
+function checkAdminPw() {
+  const pw = document.getElementById('admin-pw').value;
+  if (pw === ADMIN_PW) {
+    adminUnlocked = true;
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-panel').style.display='block';
+    renderPolygonList();
+  } else {
+    document.getElementById('admin-pw-err').style.display='block';
+  }
 }
 
 // ── 폴리곤 그리기 ──
@@ -758,8 +801,8 @@ function finishPolygon() {
   map.getContainer().style.cursor = '';
   document.getElementById('polygon-name-block').style.display='block';
   document.getElementById('polygon-name-input').value='';
+  openAdmin(); // adminUnlocked=true 이므로 패널로 바로 열림
   document.getElementById('polygon-name-input').focus();
-  openAdmin();
 }
 
 function cancelDrawPolygon() {
@@ -779,12 +822,10 @@ function savePolygon() {
   if (!name) { alert('이름을 입력해주세요.'); return; }
   if (drawPoints.length < 3) { alert('꼭짓점이 부족합니다.'); return; }
 
-  // 기존 임시 마커/선 제거
   drawMarkers.forEach(m => map.removeLayer(m));
   if (drawPolyline) map.removeLayer(drawPolyline);
   drawMarkers = []; drawPolyline = null;
 
-  // 폴리곤 저장
   const pts = drawPoints.slice();
   lastDrawnPoints = pts;
   const layer = L.polygon(pts, {
@@ -794,7 +835,6 @@ function savePolygon() {
     fillOpacity:0.25
   }).addTo(polygonLayer);
 
-  // 이름 라벨
   const center = layer.getBounds().getCenter();
   L.marker(center, {
     icon: L.divIcon({
@@ -807,8 +847,6 @@ function savePolygon() {
 
   savedPolygons.push({ name, points: pts, layer });
   drawPoints = [];
-
-  // 구글 시트 Locations에 저장 (별도 탭 없으면 로컬만)
   savePolygonsToStorage();
 
   document.getElementById('finish-draw-btn').style.display='none';
@@ -822,7 +860,6 @@ function duplicateLastPolygon() {
   if (!lastDrawnPoints || lastDrawnPoints.length < 3) { alert('복제할 폴리곤이 없어요.'); return; }
   const offset = 0.0003;
   drawPoints = lastDrawnPoints.map(([lat,lng]) => [lat + offset, lng + offset]);
-  // 임시 시각화
   drawMarkers.forEach(m => map.removeLayer(m));
   if (drawPolyline) map.removeLayer(drawPolyline);
   drawMarkers = drawPoints.map(p => L.circleMarker(p,{radius:6,fillColor:'#00c2ff',color:'#fff',weight:2,fillOpacity:1}).addTo(map));
@@ -836,7 +873,6 @@ function flipPolygon() {
   const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
   const centerLng = (minLng + maxLng) / 2;
   drawPoints = drawPoints.map(([lat,lng]) => [lat, 2 * centerLng - lng]);
-  // 다시 시각화
   drawMarkers.forEach(m => map.removeLayer(m));
   if (drawPolyline) map.removeLayer(drawPolyline);
   drawMarkers = drawPoints.map(p => L.circleMarker(p,{radius:6,fillColor:'#00e5a0',color:'#fff',weight:2,fillOpacity:1}).addTo(map));
@@ -865,7 +901,6 @@ function renderPolygonList() {
   `).join('');
 }
 
-// ── localStorage에 폴리곤 저장 ──
 function savePolygonsToStorage() {
   try {
     const data = savedPolygons.map(p => ({name:p.name, points:p.points}));
@@ -1020,7 +1055,6 @@ function render() {
 }
 
 loadAllData();
-// 폴리곤 로컬스토리지에서 불러오기 (지도 초기화 후)
 setTimeout(loadPolygonsFromStorage, 500);
 </script>
 </body>
