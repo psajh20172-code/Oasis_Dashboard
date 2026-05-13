@@ -698,28 +698,34 @@ function renderWeatherDetail(d) {
 }
 
 // ── 관리 모달 ──
+let adminUnlocked = false; // 상태 변수 추가
+
 function openAdmin() {
   document.getElementById('admin-overlay').classList.add('open');
-  document.getElementById('admin-lock').style.display='block';
-  document.getElementById('admin-panel').style.display='none';
-  document.getElementById('admin-pw').value='';
-  document.getElementById('admin-pw-err').style.display='none';
+  if (adminUnlocked) {
+    document.getElementById('admin-lock').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+  } else {
+    document.getElementById('admin-lock').style.display = 'block';
+    document.getElementById('admin-panel').style.display = 'none';
+  }
+  document.getElementById('admin-pw-err').style.display = 'none';
+}
+
+function checkAdminPw() {
+  if (document.getElementById('admin-pw').value === ADMIN_PW) {
+    adminUnlocked = true; // ← 추가
+    document.getElementById('admin-lock').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    renderPolygonList();
+  } else {
+    document.getElementById('admin-pw-err').style.display = 'block';
+  }
 }
 
 function closeAdmin() {
   document.getElementById('admin-overlay').classList.remove('open');
   if (isDrawing) cancelDrawPolygon();
-}
-
-function checkAdminPw() {
-  const pw = document.getElementById('admin-pw').value;
-  if (pw === ADMIN_PW) {
-    document.getElementById('admin-lock').style.display='none';
-    document.getElementById('admin-panel').style.display='block';
-    renderPolygonList();
-  } else {
-    document.getElementById('admin-pw-err').style.display='block';
-  }
 }
 
 // ── 폴리곤 그리기 ──
