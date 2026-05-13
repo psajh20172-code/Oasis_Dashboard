@@ -414,7 +414,7 @@ function updateMapBubbles() {
   const iceByLoc = getIceByLocation(selectedDate);
   const zoom = map.getZoom();
 
-  if (zoom < 14) {
+  if (zoom < 12) {
     // ── 1단계 (줌 < 14): 팀별 버블 ──
     const teamTotals = {
       A:{total:0,lats:[],lngs:[]},
@@ -465,8 +465,8 @@ function updateMapBubbles() {
       }).addTo(bubbleLayer);
     });
 
-  } else if (zoom < 16) {
-    // ── 2단계 (14 ≤ 줌 < 16): 그룹별 버블 (LOC_GROUP 기준 묶음) ──
+  } else if (zoom < 15) {
+    // ── 2단계 (12 ≤ 줌 < 14): 그룹별 버블 (LOC_GROUP 기준 묶음) ──
     const groupData = {};
 
     Object.entries(iceByLoc).forEach(([locName, data]) => {
