@@ -500,8 +500,11 @@ async function loadAllData() {
     document.getElementById('last-updated').textContent = '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR');
     document.getElementById('loading-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    if (!map) initMap();
-    setTimeout(()=>map&&map.invalidateSize(),200);
+  if (!map) {
+    initMap();
+    loadPolygonsFromStorage();
+  }
+  setTimeout(()=>map&&map.invalidateSize(),200);
   } catch(e) {
     document.getElementById('loading-screen').innerHTML=`
       <div style="text-align:center;padding:20px">
@@ -1060,7 +1063,6 @@ function render() {
 }
 
 loadAllData();
-setTimeout(loadPolygonsFromStorage, 500);
 </script>
 </body>
 </html>
