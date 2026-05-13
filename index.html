@@ -795,11 +795,14 @@ function startDrawPolygon() {
 
 function addDrawPoint(lat, lng) {
   drawPoints.push([lat, lng]);
-  const m = L.circleMarker([lat,lng],{radius:6,fillColor:'#00c2ff',color:'#fff',weight:2,fillOpacity:1}).addTo(map);
+  const m = L.circleMarker([lat,lng],{radius:6,fillColor:'#cbd5e1',color:'#fff',weight:2,fillOpacity:1}).addTo(map);
   drawMarkers.push(m);
   if (drawPolyline) map.removeLayer(drawPolyline);
   if (drawPoints.length >= 2) {
-    drawPolyline = L.polyline([...drawPoints, drawPoints[0]], {color:'#00c2ff',weight:2,dashArray:'6,4'}).addTo(map);
+    drawPolyline = L.polyline(
+  drawPoints,
+  {color:'#00c2ff',weight:2,dashArray:'6,4'}
+).addTo(map);
   }
 }
 
@@ -871,7 +874,10 @@ function duplicateLastPolygon() {
   drawMarkers.forEach(m => map.removeLayer(m));
   if (drawPolyline) map.removeLayer(drawPolyline);
   drawMarkers = drawPoints.map(p => L.circleMarker(p,{radius:6,fillColor:'#00c2ff',color:'#fff',weight:2,fillOpacity:1}).addTo(map));
-  drawPolyline = L.polyline([...drawPoints, drawPoints[0]],{color:'#00c2ff',weight:2,dashArray:'6,4'}).addTo(map);
+  drawPolyline = L.polyline(
+  drawPoints,
+  {color:'#cbd5e1',weight:2,dashArray:'6,4'}
+).addTo(map);
   alert('복제됐어요! 이름을 입력하고 저장하세요.');
 }
 
