@@ -218,6 +218,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic 
   <!-- 지도 탭 -->
   <div class="section active" id="sec-map">
     <div id="map"></div>
+    <div id="map-draw-controls" style="display:none; gap:8px; margin-top:8px;">
+  <button class="admin-btn primary" onclick="finishPolygon()">✅ 그리기 완료</button>
+  <button class="admin-btn danger" onclick="cancelDrawPolygon()">✖ 취소</button>
+</div>
     <div class="map-legend">
       <div class="legend-item"><div class="legend-dot" style="background:#00c2ff"></div>A팀</div>
       <div class="legend-item"><div class="legend-dot" style="background:#00e5a0"></div>B팀</div>
@@ -777,9 +781,10 @@ function startDrawPolygon() {
   drawPoints = [];
   drawMarkers = [];
   drawPolyline = null;
-  document.getElementById('finish-draw-btn').style.display='block';
-  document.getElementById('cancel-draw-btn').style.display='block';
+  document.getElementById('finish-draw-btn').style.display='none';
+  document.getElementById('cancel-draw-btn').style.display='none';
   document.getElementById('polygon-name-block').style.display='none';
+  document.getElementById('map-draw-controls').style.display='flex';
   closeAdmin();
   map.getContainer().style.cursor = 'crosshair';
   alert('지도를 클릭하여 꼭짓점을 추가하세요.\n3개 이상 찍은 후 [그리기 완료]를 누르세요.');
