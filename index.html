@@ -645,7 +645,7 @@ function updateMapBubbles() {
   const iceByLoc = getIceByLocation(selectedDate);
   const zoom = map.getZoom();
 
-  if (zoom < 16) {
+  if (zoom < 14) {
     const teamTotals = {A:{total:0,lats:[],lngs:[]},B:{total:0,lats:[],lngs:[]},C:{total:0,lats:[],lngs:[]}};
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
@@ -665,7 +665,7 @@ function updateMapBubbles() {
       L.circleMarker([avgLat,avgLng],{radius:r,fillColor:color,color:color,weight:2,fillOpacity:0.22}).addTo(bubbleLayer);
       L.marker([avgLat,avgLng],{icon:L.divIcon({className:'',html:`<div style="color:#fff;font-weight:800;text-align:center;text-shadow:0 2px 6px rgba(0,0,0,0.9);transform:translate(-50%,-50%);pointer-events:none;"><div style="font-size:28px;line-height:1">${data.total}</div><div style="font-size:11px;opacity:0.85">${team}팀</div></div>`,iconAnchor:[0,0]}),interactive:false}).addTo(bubbleLayer);
     });
-  } else if (zoom < 18) {
+  } else if (zoom < 17) {
     const groupData = {};
     Object.entries(iceByLoc).forEach(([locName, data]) => {
       const locInfo = locMap[locName];
