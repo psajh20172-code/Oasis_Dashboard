@@ -645,7 +645,7 @@ function updateIceTable() {
     <tr>
       <td style="font-size:12px;font-weight:600">${remark}</td>
       <td><span class="team-badge team-${d.team}" style="font-size:10px;padding:2px 7px">${d.team}팀</span></td>
-      <td style="font-size:12px;color:var(--muted)">${Math.round(d.인원)}명<br><span style="font-size:11px">(${d.비율}%)</span></td>
+      <td style="font-size:12px;color:var(--muted)">${Math.round(d.인원)}명</td>
       <td class="ice-${d.team}">${Math.round(d.얼음물)}<br><span style="font-size:10px;font-weight:400;color:var(--muted)">(${Math.round(d.얼음물세트)}세트)</span></td>
     </tr>`).join('');
 }
