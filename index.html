@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -472,9 +472,9 @@ function updateMapBubbles() {
       L.circleMarker([avgLat,avgLng],{radius:r,fillColor:color,color:color,weight:2,fillOpacity:0.22}).addTo(bubbleLayer);
       L.marker([avgLat,avgLng],{icon:L.divIcon({className:'',html:`
         <div style="color:#fff;font-weight:800;text-align:center;text-shadow:0 2px 6px rgba(0,0,0,0.9);transform:translate(-50%,-50%);pointer-events:none;">
-          <div style="font-size:22px;line-height:1.1">${Math.round(d.얼음물)}</div>
-          <div style="font-size:10px;opacity:0.75">(${Math.round(d.얼음물세트)}세트)</div>
-          <div style="font-size:10px;opacity:0.85">${team}팀 · ${Math.round(d.인원)}명(${avgBi율}%)</div>
+      <div style="font-size:22px;line-height:1.1">${Math.round(d.얼음물)}</div>
+      <div style="font-size:10px;opacity:0.75">(${Math.round(d.얼음물세트)}세트)</div>
+      <div style="font-size:10px;opacity:0.85">${team}팀</div>
         </div>`,iconAnchor:[0,0]}),interactive:false}).addTo(bubbleLayer);
     });
 
@@ -490,8 +490,8 @@ function updateMapBubbles() {
       L.circleMarker([lat,lng],{radius:r,fillColor:color,color:color,weight:2,fillOpacity:0.28}).addTo(bubbleLayer);
       const marker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:`
         <div style="color:#fff;font-weight:800;text-align:center;text-shadow:0 2px 6px rgba(0,0,0,0.9);transform:translate(-50%,-50%);cursor:pointer;">
-          <div style="font-size:16px;line-height:1.1">${Math.round(d.얼음물)}</div>
-          <div style="font-size:9px;opacity:0.8">${Math.round(d.인원)}명(${d.비율}%)</div>
+        <div style="font-size:16px;line-height:1.1">${Math.round(d.얼음물)}</div>
+        <div style="font-size:9px;opacity:0.8">(${Math.round(d.얼음물세트)}세트)</div>
         </div>`,iconAnchor:[0,0]})});
       marker.bindPopup(`
         <div style="min-width:175px">
@@ -517,8 +517,7 @@ function updateMapBubbles() {
       const color=TEAM_COLOR[d.team]||'#64748b';
       const marker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:`
         <div style="background:${color};color:#000;font-weight:800;border-radius:16px;padding:4px 10px;font-size:12px;border:2px solid rgba(255,255,255,0.5);box-shadow:0 2px 8px rgba(0,0,0,0.4);white-space:nowrap;transform:translate(-50%,-50%);cursor:pointer;text-align:center;line-height:1.3;">
-          <div>${Math.round(d.얼음물)}<span style="font-size:9px;font-weight:600"> (${Math.round(d.얼음물세트)}세트)</span></div>
-          <div style="font-size:9px">${Math.round(d.인원)}명(${d.비율}%)</div>
+        <div>${Math.round(d.얼음물)}<span style="font-size:9px;font-weight:600"> (${Math.round(d.얼음물세트)}세트)</span></div>
         </div>`,iconAnchor:[0,0]})});
       marker.bindPopup(`
         <div style="min-width:165px">
